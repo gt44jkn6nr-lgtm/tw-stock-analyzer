@@ -106,6 +106,167 @@ const defaultWatchlist = [
   { stockNo: "2881", name: "富邦金", industry: "金融保險" },
   { stockNo: "2603", name: "長榮", industry: "航運" },
 ];
+const industryMapAdditions = [
+  { stockNo: "2330", name: "台積電", industry: "半導體 / 晶圓代工" },
+  { stockNo: "2303", name: "聯電", industry: "半導體 / 晶圓代工" },
+  { stockNo: "6770", name: "力積電", industry: "半導體 / 晶圓代工與記憶體" },
+  { stockNo: "5347", name: "世界", industry: "半導體 / 晶圓代工" },
+  { stockNo: "3105", name: "穩懋", industry: "半導體 / 化合物晶圓代工" },
+
+  { stockNo: "2404", name: "漢唐", industry: "台積電供應鏈 / 建廠廠務設備" },
+  { stockNo: "6139", name: "亞翔", industry: "台積電供應鏈 / 建廠廠務設備" },
+  { stockNo: "5536", name: "聖暉*", industry: "台積電供應鏈 / 建廠廠務設備" },
+  { stockNo: "6196", name: "帆宣", industry: "台積電供應鏈 / 建廠廠務設備" },
+  { stockNo: "6667", name: "信紘科", industry: "台積電供應鏈 / 廠務與特殊氣體" },
+  { stockNo: "6806", name: "森崴能源", industry: "台積電供應鏈 / 綠電與能源" },
+
+  { stockNo: "5443", name: "均豪", industry: "半導體設備 / 檢測與自動化" },
+  { stockNo: "6640", name: "均華", industry: "半導體設備 / 先進封裝設備" },
+  { stockNo: "3455", name: "由田", industry: "半導體設備 / AOI 檢測" },
+  { stockNo: "3131", name: "弘塑", industry: "半導體設備 / 濕製程" },
+  { stockNo: "3583", name: "辛耘", industry: "半導體設備 / 再生晶圓與設備" },
+  { stockNo: "6187", name: "萬潤", industry: "半導體設備 / 封裝自動化" },
+  { stockNo: "6125", name: "廣運", industry: "半導體設備 / 自動化與物流" },
+  { stockNo: "2464", name: "盟立", industry: "半導體設備 / 自動化與機器人" },
+
+  { stockNo: "4763", name: "材料-KY", industry: "半導體材料 / 特用化學" },
+  { stockNo: "4768", name: "晶呈科技", industry: "半導體材料 / 特用氣體" },
+  { stockNo: "4770", name: "上品", industry: "半導體材料 / 耐腐蝕材料" },
+  { stockNo: "4755", name: "三福化", industry: "半導體材料 / 濕電子化學品" },
+  { stockNo: "1773", name: "勝一", industry: "半導體材料 / 溶劑" },
+  { stockNo: "1560", name: "中砂", industry: "半導體材料 / 再生晶圓與鑽石碟" },
+  { stockNo: "2338", name: "光罩", industry: "半導體材料 / 光罩" },
+  { stockNo: "6488", name: "環球晶", industry: "半導體材料 / 矽晶圓" },
+  { stockNo: "5483", name: "中美晶", industry: "半導體材料 / 矽晶圓" },
+  { stockNo: "6182", name: "合晶", industry: "半導體材料 / 矽晶圓" },
+  { stockNo: "3016", name: "嘉晶", industry: "半導體材料 / 磊晶與功率元件" },
+
+  { stockNo: "3711", name: "日月光投控", industry: "半導體 / 封測" },
+  { stockNo: "6239", name: "力成", industry: "半導體 / 封測" },
+  { stockNo: "2449", name: "京元電子", industry: "半導體 / 測試" },
+  { stockNo: "3264", name: "欣銓", industry: "半導體 / 測試" },
+  { stockNo: "8150", name: "南茂", industry: "半導體 / 封測" },
+  { stockNo: "6147", name: "頎邦", industry: "半導體 / 驅動 IC 封測" },
+  { stockNo: "6271", name: "同欣電", industry: "半導體 / 車用與影像封裝" },
+
+  { stockNo: "2454", name: "聯發科", industry: "IC 設計 / 手機與 ASIC" },
+  { stockNo: "2379", name: "瑞昱", industry: "IC 設計 / 網通與音訊" },
+  { stockNo: "3661", name: "世芯-KY", industry: "IC 設計 / AI ASIC" },
+  { stockNo: "3443", name: "創意", industry: "IC 設計 / ASIC 服務" },
+  { stockNo: "3035", name: "智原", industry: "IC 設計 / ASIC 服務" },
+  { stockNo: "5274", name: "信驊", industry: "IC 設計 / 伺服器管理晶片" },
+  { stockNo: "6415", name: "矽力*-KY", industry: "IC 設計 / 電源管理" },
+  { stockNo: "4919", name: "新唐", industry: "IC 設計 / MCU" },
+  { stockNo: "6202", name: "盛群", industry: "IC 設計 / MCU" },
+  { stockNo: "2436", name: "偉詮電", industry: "IC 設計 / MCU 與電源" },
+  { stockNo: "2458", name: "義隆", industry: "IC 設計 / 觸控" },
+
+  { stockNo: "2344", name: "華邦電", industry: "記憶體 / DRAM 與 Flash" },
+  { stockNo: "2408", name: "南亞科", industry: "記憶體 / DRAM" },
+  { stockNo: "2337", name: "旺宏", industry: "記憶體 / NOR Flash" },
+  { stockNo: "8299", name: "群聯", industry: "記憶體 / 控制 IC" },
+  { stockNo: "3006", name: "晶豪科", industry: "記憶體 / IC 設計" },
+  { stockNo: "2329", name: "華泰", industry: "記憶體 / 封測" },
+  { stockNo: "3260", name: "威剛", industry: "記憶體 / 模組" },
+  { stockNo: "8271", name: "宇瞻", industry: "記憶體 / 模組" },
+  { stockNo: "4967", name: "十銓", industry: "記憶體 / 模組" },
+  { stockNo: "8088", name: "品安", industry: "記憶體 / 模組" },
+  { stockNo: "5289", name: "宜鼎", industry: "記憶體 / 工控模組" },
+  { stockNo: "2451", name: "創見", industry: "記憶體 / 模組" },
+
+  { stockNo: "3037", name: "欣興", industry: "PCB / ABF 載板" },
+  { stockNo: "3189", name: "景碩", industry: "PCB / ABF 載板" },
+  { stockNo: "8046", name: "南電", industry: "PCB / ABF 載板" },
+  { stockNo: "2383", name: "台光電", industry: "PCB / CCL 銅箔基板" },
+  { stockNo: "6274", name: "台燿", industry: "PCB / CCL 銅箔基板" },
+  { stockNo: "6213", name: "聯茂", industry: "PCB / CCL 銅箔基板" },
+  { stockNo: "8358", name: "金居", industry: "PCB / 銅箔" },
+  { stockNo: "5469", name: "瀚宇博", industry: "PCB / HDI 與板廠" },
+  { stockNo: "2368", name: "金像電", industry: "PCB / AI 伺服器板" },
+  { stockNo: "2313", name: "華通", industry: "PCB / HDI 與車用板" },
+  { stockNo: "3044", name: "健鼎", industry: "PCB / 多層板" },
+  { stockNo: "4958", name: "臻鼎-KY", industry: "PCB / 蘋果與伺服器板" },
+  { stockNo: "6191", name: "精成科", industry: "PCB / 多層板" },
+
+  { stockNo: "1802", name: "台玻", industry: "玻璃基板 / 玻纖與玻璃材料" },
+  { stockNo: "3481", name: "群創", industry: "玻璃基板 / 面板與先進封裝題材" },
+  { stockNo: "3149", name: "正達", industry: "玻璃基板 / 玻璃加工" },
+  { stockNo: "6207", name: "雷科", industry: "玻璃基板 / 雷射設備" },
+  { stockNo: "1809", name: "中釉", industry: "玻璃基板 / 薄膜與釉料" },
+  { stockNo: "4976", name: "佳凌", industry: "玻璃基板 / 光學玻璃加工" },
+  { stockNo: "2409", name: "友達", industry: "面板 / 顯示器" },
+  { stockNo: "6116", name: "彩晶", industry: "面板 / 顯示器" },
+
+  { stockNo: "2327", name: "國巨", industry: "被動元件 / MLCC" },
+  { stockNo: "2492", name: "華新科", industry: "被動元件 / MLCC" },
+  { stockNo: "3026", name: "禾伸堂", industry: "被動元件 / 通路與 MLCC" },
+  { stockNo: "2478", name: "大毅", industry: "被動元件 / 電阻" },
+  { stockNo: "6173", name: "信昌電", industry: "被動元件 / MLCC" },
+  { stockNo: "2375", name: "凱美", industry: "被動元件 / 電容" },
+  { stockNo: "2472", name: "立隆電", industry: "被動元件 / 鋁電容" },
+  { stockNo: "2428", name: "興勤", industry: "被動元件 / 保護元件" },
+  { stockNo: "3042", name: "晶技", industry: "被動元件 / 石英元件" },
+
+  { stockNo: "2481", name: "強茂", industry: "功率元件 / 二極體" },
+  { stockNo: "5425", name: "台半", industry: "功率元件 / 二極體與 MOSFET" },
+  { stockNo: "2342", name: "茂矽", industry: "功率元件 / MOSFET" },
+  { stockNo: "3707", name: "漢磊", industry: "功率元件 / 化合物半導體" },
+  { stockNo: "8255", name: "朋程", industry: "功率元件 / 車用二極體" },
+
+  { stockNo: "2382", name: "廣達", industry: "AI 伺服器 / ODM" },
+  { stockNo: "3231", name: "緯創", industry: "AI 伺服器 / ODM" },
+  { stockNo: "6669", name: "緯穎", industry: "AI 伺服器 / ODM" },
+  { stockNo: "2356", name: "英業達", industry: "AI 伺服器 / ODM" },
+  { stockNo: "2324", name: "仁寶", industry: "AI 伺服器 / ODM" },
+  { stockNo: "2317", name: "鴻海", industry: "AI 伺服器 / ODM 與電子代工" },
+  { stockNo: "3017", name: "奇鋐", industry: "AI 伺服器 / 散熱" },
+  { stockNo: "3324", name: "雙鴻", industry: "AI 伺服器 / 散熱" },
+  { stockNo: "3653", name: "健策", industry: "AI 伺服器 / 均熱片與散熱" },
+  { stockNo: "2421", name: "建準", industry: "AI 伺服器 / 風扇散熱" },
+  { stockNo: "8996", name: "高力", industry: "AI 伺服器 / 水冷與熱交換" },
+  { stockNo: "2308", name: "台達電", industry: "AI 伺服器 / 電源與散熱" },
+  { stockNo: "6412", name: "群電", industry: "AI 伺服器 / 電源" },
+  { stockNo: "3533", name: "嘉澤", industry: "AI 伺服器 / 連接器" },
+  { stockNo: "3665", name: "貿聯-KY", industry: "AI 伺服器 / 線束" },
+  { stockNo: "3023", name: "信邦", industry: "AI 伺服器 / 線束與連接器" },
+  { stockNo: "2392", name: "正崴", industry: "AI 伺服器 / 連接器" },
+
+  { stockNo: "3081", name: "聯亞", industry: "光通訊 / 磊晶" },
+  { stockNo: "4979", name: "華星光", industry: "光通訊 / 光模組" },
+  { stockNo: "4908", name: "前鼎", industry: "光通訊 / 光模組" },
+  { stockNo: "3163", name: "波若威", industry: "光通訊 / 光纖元件" },
+  { stockNo: "3363", name: "上詮", industry: "光通訊 / 光纖元件" },
+  { stockNo: "3450", name: "聯鈞", industry: "光通訊 / 光模組" },
+  { stockNo: "3234", name: "光環", industry: "光通訊 / 光元件" },
+
+  { stockNo: "1513", name: "中興電", industry: "電力與重電 / 變壓器與電網" },
+  { stockNo: "1519", name: "華城", industry: "電力與重電 / 變壓器" },
+  { stockNo: "1504", name: "東元", industry: "電力與重電 / 馬達與節能" },
+  { stockNo: "1605", name: "華新", industry: "原物料 / 銅與電線電纜" },
+  { stockNo: "2002", name: "中鋼", industry: "原物料 / 鋼鐵" },
+  { stockNo: "1303", name: "南亞", industry: "原物料 / 塑化與 CCL 上游" },
+  { stockNo: "6505", name: "台塑化", industry: "原物料 / 油品與塑化" },
+  { stockNo: "1304", name: "台聚", industry: "原物料 / 塑化" },
+  { stockNo: "1312", name: "國喬", industry: "原物料 / 塑化" },
+
+  { stockNo: "2603", name: "長榮", industry: "航運 / 貨櫃" },
+  { stockNo: "2609", name: "陽明", industry: "航運 / 貨櫃" },
+  { stockNo: "2615", name: "萬海", industry: "航運 / 貨櫃" },
+  { stockNo: "2618", name: "長榮航", industry: "航運 / 航空" },
+  { stockNo: "2610", name: "華航", industry: "航運 / 航空" },
+  { stockNo: "2881", name: "富邦金", industry: "金融 / 金控" },
+  { stockNo: "2882", name: "國泰金", industry: "金融 / 金控" },
+  { stockNo: "2886", name: "兆豐金", industry: "金融 / 金控" },
+  { stockNo: "2891", name: "中信金", industry: "金融 / 金控" },
+];
+
+function uniqueWatchlist(items) {
+  const map = new Map();
+  for (const item of items) map.set(item.stockNo, item);
+  return [...map.values()];
+}
+
+const builtInWatchlist = uniqueWatchlist([...defaultWatchlist, ...industryMapAdditions]);
 const legacyDefaultStocksToRemove = new Set(["1810", "2456", "3583"]);
 
 let watchlist = loadWatchlist();
@@ -115,7 +276,7 @@ function loadWatchlist() {
     const saved = JSON.parse(localStorage.getItem(watchStorageKey) || "[]");
     if (Array.isArray(saved) && saved.length) {
       const merged = saved.filter((item) => !legacyDefaultStocksToRemove.has(item.stockNo));
-      for (const item of defaultWatchlist) {
+      for (const item of builtInWatchlist) {
         const existing = merged.find((savedItem) => savedItem.stockNo === item.stockNo);
         if (!existing) {
           merged.push(item);
@@ -128,7 +289,7 @@ function loadWatchlist() {
       return merged;
     }
   } catch {}
-  return [...defaultWatchlist];
+  return [...builtInWatchlist];
 }
 
 function saveWatchlist() {
