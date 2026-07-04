@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>台股技術分析</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <h1>台股技術分析</h1>
+          <p id="subtitle">輸入股票代號，查看 K 線、均線、RSI、MACD 與布林通道。</p>
+        </div>
+        <form id="queryForm" class="query">
+          <label>
+            股票代號
+            <input id="stockNo" value="2330" inputmode="numeric" autocomplete="off" />
+          </label>
+          <label>
+            區間
+            <select id="months">
+              <option value="6">6 個月</option>
+              <option value="12" selected>12 個月</option>
+              <option value="24">24 個月</option>
+              <option value="36">36 個月</option>
+            </select>
+          </label>
+          <button type="submit">查詢</button>
+        </form>
+      </header>
+
+      <section class="watch-panel">
+        <div class="watch-head">
+          <div>
+            <h2>自選與族群</h2>
+            <span>可依產業族群切換，也可新增自己的觀察名單。</span>
+          </div>
+          <form id="watchForm" class="watch-form">
+            <input id="watchStock" placeholder="股票代號" inputmode="numeric" autocomplete="off" />
+            <input id="watchName" placeholder="名稱，可不填" autocomplete="off" />
+            <select id="watchIndustry">
+              <option value="台積電供應鏈 / 建廠廠務設備">台積電供應鏈 / 建廠廠務設備</option>
+              <option value="台積電供應鏈 / 特化材料">台積電供應鏈 / 特化材料</option>
+              <option value="台積電供應鏈 / 晶圓代工">台積電供應鏈 / 晶圓代工</option>
+              <option value="記憶體">記憶體</option>
+              <option value="被動元件">被動元件</option>
+              <option value="功率元件">功率元件</option>
+              <option value="ABF 載板">ABF 載板</option>
+              <option value="玻璃基板 / 面板玻璃">玻璃基板 / 面板玻璃</option>
+              <option value="玻璃基板 / 設備材料">玻璃基板 / 設備材料</option>
+              <option value="銅箔基板 / CCL">銅箔基板 / CCL</option>
+              <option value="半導體材料 / 矽晶圓">半導體材料 / 矽晶圓</option>
+              <option value="半導體材料 / 化學材料">半導體材料 / 化學材料</option>
+              <option value="原物料 / 漲價波動">原物料 / 漲價波動</option>
+              <option value="IC 設計">IC 設計</option>
+              <option value="小型股 / 題材觀察">小型股 / 題材觀察</option>
+              <option value="電子代工">電子代工</option>
+              <option value="金融保險">金融保險</option>
+              <option value="航運">航運</option>
+              <option value="其他">其他</option>
+            </select>
+            <button type="submit">加入</button>
+          </form>
+        </div>
+        <div class="industry-tabs" id="industryTabs"></div>
+        <div class="watch-list" id="watchList"></div>
+      </section>
+
+      <section class="quote-panel">
+        <div class="quote-head">
+          <div>
+            <h2>產業報價與原物料波動</h2>
+            <span id="quoteStatus">讀取報價中</span>
+          </div>
+          <button type="button" id="quoteRefresh">更新報價</button>
+        </div>
+        <div class="quote-list" id="industryQuotes"></div>
+      </section>
+
+      <section class="summary-grid" id="summary"></section>
+
+      <section class="entry-panel" id="entryPanel">
+        <div class="entry-head">
+          <div>
+            <h2>進場訊號</h2>
+            <span id="entryStatus">等待資料</span>
+          </div>
+          <button type="button" id="notifyToggle">開啟提醒</button>
+        </div>
+        <div class="entry-grid" id="entrySignals"></div>
+      </section>
+
+      <section class="chart-panel">
+        <div class="chart-head">
+          <div>
+            <h2 id="chartTitle">技術線圖</h2>
+            <span id="status">準備讀取</span>
+          </div>
+          <div class="legend">
+            <span><i class="ma5"></i>MA5</span>
+            <span><i class="ma20"></i>MA20</span>
+            <span><i class="ma60"></i>MA60</span>
+            <span><i class="boll"></i>BOLL</span>
+          </div>
+        </div>
+        <div class="draw-toolbar">
+          <button type="button" id="drawToggle">畫線</button>
+          <label>
+            顏色
+            <input id="drawColor" type="color" value="#d64550" />
+          </label>
+          <label>
+            粗細
+            <input id="drawWidth" type="range" min="1" max="8" value="3" />
+          </label>
+          <button type="button" id="drawClear">清除標記</button>
+          <button type="button" id="zoomOut">縮小</button>
+          <span class="zoom-label" id="zoomLabel">1x</span>
+          <button type="button" id="zoomIn">放大</button>
+          <button type="button" id="zoomReset">重設</button>
+        </div>
+        <div class="draw-surface">
+          <canvas id="priceChart" height="340"></canvas>
+          <canvas id="drawCanvas" height="340"></canvas>
+        </div>
+      </section>
+
+      <div class="lower-grid">
+        <section class="chart-panel">
+          <div class="chart-head">
+            <h2>RSI 14</h2>
+          </div>
+          <canvas id="rsiChart" height="170"></canvas>
+        </section>
+        <section class="chart-panel">
+          <div class="chart-head">
+            <h2>MACD</h2>
+          </div>
+          <canvas id="macdChart" height="170"></canvas>
+        </section>
+      </div>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>
