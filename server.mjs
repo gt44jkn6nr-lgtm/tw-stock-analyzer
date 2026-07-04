@@ -441,6 +441,11 @@ async function fetchIndustryQuotes() {
 }
 
 async function serveStatic(req, res) {
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    res.writeHead(405, { allow: "GET, HEAD" });
+    res.end("Method not allowed");
+    return;
+  }
   const url = new URL(req.url, `http://${req.headers.host}`);
   const filePath = path.normalize(path.join(publicDir, url.pathname === "/" ? "index.html" : url.pathname));
   if (!filePath.startsWith(publicDir)) {
@@ -450,8 +455,12 @@ async function serveStatic(req, res) {
   }
   try {
     const body = await fs.readFile(filePath);
-    res.writeHead(200, { "content-type": mime[path.extname(filePath)] || "application/octet-stream" });
-    res.end(body);
+    const headers = {
+      "content-type": mime[path.extname(filePath)] || "application/octet-stream",
+      "content-length": body.length,
+    };
+    res.writeHead(200, headers);
+    res.end(req.method === "HEAD" ? undefined : body);
   } catch {
     res.writeHead(404);
     res.end("Not found");
