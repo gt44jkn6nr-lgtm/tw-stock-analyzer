@@ -490,7 +490,7 @@ function releaseReport({ version, searchAccuracy, dataQuality, metrics }) {
     releaseName: "Phase 2.5 Master Data + Global Search Preview Candidate",
     branch: "phase2-master-data-search",
     version: {
-      appVersion: "1.4.0-phase2-master-search-dev",
+      appVersion: "1.4.0-phase2-master-search-preview",
       masterBuildVersion: version.buildVersion,
       checksum: version.checksum,
     },

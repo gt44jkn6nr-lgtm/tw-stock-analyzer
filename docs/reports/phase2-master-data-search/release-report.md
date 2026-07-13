@@ -1,12 +1,12 @@
 # Release Report
 
-Generated at: 2026-07-13T16:03:49.677Z
+Generated at: 2026-07-13T16:16:09.821Z
 
 ## Version
 
 - Release: Phase 2.5 Master Data + Global Search Preview Candidate
 - Branch: phase2-master-data-search
-- App version: 1.4.0-phase2-master-search-dev
+- App version: 1.4.0-phase2-master-search-preview
 - Master build version: phase2-master-data-search-1
 - Checksum: 0e18a040929e0c041e662bc7cba9fd10e290910a7c2eace69e8493579c971335
 

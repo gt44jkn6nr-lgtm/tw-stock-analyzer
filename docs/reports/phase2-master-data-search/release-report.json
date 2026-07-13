@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-07-13T16:03:49.677Z",
+  "generatedAt": "2026-07-13T16:16:09.821Z",
   "releaseName": "Phase 2.5 Master Data + Global Search Preview Candidate",
   "branch": "phase2-master-data-search",
   "version": {
-    "appVersion": "1.4.0-phase2-master-search-dev",
+    "appVersion": "1.4.0-phase2-master-search-preview",
     "masterBuildVersion": "phase2-master-data-search-1",
     "checksum": "0e18a040929e0c041e662bc7cba9fd10e290910a7c2eace69e8493579c971335"
   },
