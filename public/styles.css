@@ -548,6 +548,33 @@ h3 {
   min-width: 0;
 }
 
+.quarter-input-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.quarter-input-card {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+
+.quarter-input-card strong {
+  grid-column: 1 / -1;
+  color: var(--orange);
+}
+
+.quarter-input-card input {
+  width: 100%;
+  min-width: 0;
+}
+
 .scenario-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -577,6 +604,10 @@ h3 {
 .scenario-card small {
   color: #cbd5e1;
   font-size: 12px;
+}
+
+.scenario-card .warning-text {
+  color: #ffd092;
 }
 
 .formula-box {
@@ -1070,6 +1101,7 @@ canvas {
   .summary-grid,
   .financial-grid,
   .eps-form,
+  .quarter-input-grid,
   .scenario-grid,
   .entry-grid,
   .lower-grid,
@@ -1078,6 +1110,10 @@ canvas {
   .alert-columns,
   .theme-list,
   .version-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .quarter-input-card {
     grid-template-columns: 1fr;
   }
 

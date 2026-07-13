@@ -136,16 +136,39 @@
             </div>
             <div id="financialActuals" class="financial-grid"></div>
             <form id="epsForm" class="eps-form">
-              <label>季營收成長率<input id="epsGrowth" type="number" step="0.01" value="0" /></label>
-              <label>毛利率<input id="epsGrossMargin" type="number" step="0.01" /></label>
-              <label>營業費用率<input id="epsOpexRate" type="number" step="0.01" /></label>
-              <label>稅率<input id="epsTaxRate" type="number" step="0.01" /></label>
+              <label>套用營收成長率<input id="epsGrowth" type="number" step="0.01" value="0" /></label>
+              <label>套用毛利率<input id="epsGrossMargin" type="number" step="0.01" /></label>
+              <label>套用費用率<input id="epsOpexRate" type="number" step="0.01" /></label>
+              <label>套用稅率<input id="epsTaxRate" type="number" step="0.01" /></label>
               <label>流通股數<input id="epsShares" type="number" step="1" /></label>
               <label>悲觀 PE<input id="epsPeBear" type="number" step="0.1" /></label>
               <label>基準 PE<input id="epsPeBase" type="number" step="0.1" /></label>
               <label>樂觀 PE<input id="epsPeBull" type="number" step="0.1" /></label>
               <button type="submit">套用模型</button>
             </form>
+            <div class="quarter-input-grid">
+              <div class="quarter-input-card">
+                <strong>Q2 假設</strong>
+                <input id="q2RevenueGrowth" type="number" step="0.01" placeholder="營收成長率 %" />
+                <input id="q2GrossMargin" type="number" step="0.01" placeholder="毛利率 %" />
+                <input id="q2OpexRate" type="number" step="0.01" placeholder="費用率 %" />
+                <input id="q2TaxRate" type="number" step="0.01" placeholder="稅率 %" />
+              </div>
+              <div class="quarter-input-card">
+                <strong>Q3 假設</strong>
+                <input id="q3RevenueGrowth" type="number" step="0.01" placeholder="營收成長率 %" />
+                <input id="q3GrossMargin" type="number" step="0.01" placeholder="毛利率 %" />
+                <input id="q3OpexRate" type="number" step="0.01" placeholder="費用率 %" />
+                <input id="q3TaxRate" type="number" step="0.01" placeholder="稅率 %" />
+              </div>
+              <div class="quarter-input-card">
+                <strong>Q4 假設</strong>
+                <input id="q4RevenueGrowth" type="number" step="0.01" placeholder="營收成長率 %" />
+                <input id="q4GrossMargin" type="number" step="0.01" placeholder="毛利率 %" />
+                <input id="q4OpexRate" type="number" step="0.01" placeholder="費用率 %" />
+                <input id="q4TaxRate" type="number" step="0.01" placeholder="稅率 %" />
+              </div>
+            </div>
             <div id="epsScenarios" class="scenario-grid"></div>
             <div id="epsFormula" class="formula-box"></div>
           </section>

@@ -723,10 +723,10 @@ function renderFinancial(data, fillInputs = false) {
   if (meta) meta.textContent = `${data.name || data.stockNo}｜${data.dataSeparation?.actualLabel || ""}｜${data.dataSeparation?.modelLabel || ""}`;
 
   if (fillInputs && model?.inputs) {
-    inputPercent("epsGrowth", model.inputs.quarterRevenueGrowth);
-    inputPercent("epsGrossMargin", model.inputs.grossMargin);
-    inputPercent("epsOpexRate", model.inputs.operatingExpenseRate);
-    inputPercent("epsTaxRate", model.inputs.taxRate);
+    inputPercent("epsGrowth", model.inputs.applyAll?.revenueGrowth);
+    inputPercent("epsGrossMargin", model.inputs.applyAll?.grossMargin);
+    inputPercent("epsOpexRate", model.inputs.applyAll?.operatingExpenseRate);
+    inputPercent("epsTaxRate", model.inputs.applyAll?.taxRate);
     inputNumber("epsShares", model.inputs.sharesOutstanding, 0);
     inputNumber("epsPeBear", model.inputs.pessimisticPe, 1);
     inputNumber("epsPeBase", model.inputs.basePe, 1);
@@ -744,6 +744,9 @@ function renderFinancial(data, fillInputs = false) {
     metricCard("自由現金流", profit?.freeCashFlow != null ? formatMoney(profit.freeCashFlow) : "尚無資料", profit?.freeCashFlowStatus || "尚未接入現金流量表", profit?.metadata),
     metricCard("本益比", valuation?.peRatio != null ? `${formatNumber(valuation.peRatio)} 倍` : "尚無資料", "交易所估值統計", valuation?.metadata),
     metricCard("股價淨值比", valuation?.pbRatio != null ? `${formatNumber(valuation.pbRatio)} 倍` : "尚無資料", "交易所估值統計", valuation?.metadata),
+    metricCard("已公告季度", `${data.actual?.completed_quarters ?? 0} 季`, `累計 EPS ${formatNumber(data.actual?.cumulative_eps)} 元`, profit?.metadata),
+    metricCard("流通股數", data.actual?.shares_outstanding ? `${formatMoney(data.actual.shares_outstanding)} 股` : "尚無資料", `${data.actual?.shares_source || ""}${data.actual?.shares_is_user_override ? "｜使用者假設" : ""}`, profit?.metadata),
+    metricCard("基準季", model?.baseQuarter?.name || "尚無資料", `${model?.baseQuarter?.inference_basis || ""}｜營收 ${formatMoney(model?.baseQuarter?.revenue)} 千元`, model?.metadata),
   ].join("");
 
   const scenarioRows = [
@@ -759,11 +762,14 @@ function renderFinancial(data, fillInputs = false) {
       return `
         <div class="scenario-card">
           <strong>${label}</strong>
-          <span>單季 EPS：${formatNumber(item.quarterEps)} 元</span>
-          <span>全年 EPS：${formatNumber(item.annualEps)} 元</span>
+          <span>預估季度：${escapeHtml((item.forecast_quarters || []).map((q) => q.quarter).join("、") || "--")}</span>
+          <span>${item.is_annualized ? "年化 EPS" : "全年預估 EPS"}：${formatNumber(item.annual_eps)} 元</span>
           <span>PE：${formatNumber(item.peMultiple)} 倍</span>
-          <b>合理價：${formatNumber(item.fairPrice)} 元</b>
-          <small>模型預估，非公告數據</small>
+          <b>合理價：${item.fairPriceLabel || `${formatNumber(item.fairPrice)} 元`}</b>
+          <small>${escapeHtml(item.annual_eps_method || "")}</small>
+          <small>PE 依據：${escapeHtml(item.pe_source || "")}｜${escapeHtml(item.pe_method || "")}</small>
+          ${(item.forecast_quarters || []).map((q) => `<small>${escapeHtml(q.quarter)} EPS ${formatNumber(q.quarterEps)}｜毛利率 ${formatPct(q.grossMargin?.value)}｜${escapeHtml(q.grossMargin?.source || "")}</small>`).join("")}
+          ${(item.warnings || []).length ? `<small class="warning-text">${escapeHtml([...new Set(item.warnings)].join("、"))}</small>` : ""}
         </div>
       `;
     })
@@ -771,6 +777,7 @@ function renderFinancial(data, fillInputs = false) {
 
   formula.innerHTML = `
     <strong>EPS 試算公式</strong>
+    <p>${escapeHtml(model?.annual_eps_method || "")}</p>
     <ul>
       ${Object.values(model?.formula || {}).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
     </ul>
@@ -788,6 +795,18 @@ function epsOverrideParams() {
     pessimisticPe: readNumberInput("epsPeBear"),
     basePe: readNumberInput("epsPeBase"),
     optimisticPe: readNumberInput("epsPeBull"),
+    q2RevenueGrowth: readPercentInput("q2RevenueGrowth"),
+    q2GrossMargin: readPercentInput("q2GrossMargin"),
+    q2OperatingExpenseRate: readPercentInput("q2OpexRate"),
+    q2TaxRate: readPercentInput("q2TaxRate"),
+    q3RevenueGrowth: readPercentInput("q3RevenueGrowth"),
+    q3GrossMargin: readPercentInput("q3GrossMargin"),
+    q3OperatingExpenseRate: readPercentInput("q3OpexRate"),
+    q3TaxRate: readPercentInput("q3TaxRate"),
+    q4RevenueGrowth: readPercentInput("q4RevenueGrowth"),
+    q4GrossMargin: readPercentInput("q4GrossMargin"),
+    q4OperatingExpenseRate: readPercentInput("q4OpexRate"),
+    q4TaxRate: readPercentInput("q4TaxRate"),
   };
 }
 
