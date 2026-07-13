@@ -467,8 +467,8 @@ function scoreSearchDoc(doc, q, matchType) {
   else if (exactAlias) score += 860;
   else if (exactEnglish) score += 780;
   else if (type === "etf") score += 700;
-  else if (type === "topic") score += 660;
   else if (type === "product") score += 640;
+  else if (type === "topic") score += 620;
   else if (type === "industry") score += 540;
   else if (matchType === "prefix") score += 430;
   else if (matchType === "fuzzy") score += 250;

@@ -425,7 +425,7 @@ function buildSearchIndex({ stocks, topics, products, companies, versionChecksum
       englishName: 780,
       etf: 700,
       trustedManualAlias: 940,
-      topic: 660,
+      topic: 620,
       product: 640,
       industry: 540,
       fuzzy: 250,
