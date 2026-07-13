@@ -452,6 +452,9 @@ function scoreSearchDoc(doc, q, matchType) {
     return alias.length >= 3 && q.includes(alias);
   });
   const exactAlias = (doc.aliases || []).some((item) => normalizeSearchText(item.alias || item) === q);
+  const exactHighConfidenceTopicAlias =
+    type === "topic" &&
+    (doc.aliases || []).some((item) => normalizeSearchText(item.alias || item) === q && item.source === "manual_topic" && Number(item.confidence || 0) >= 1);
   const trustedManualAlias = (doc.aliases || []).some(
     (item) => normalizeSearchText(item.alias || item) === q && item.source === "manual_alias" && Number(item.confidence || 0) >= 0.95,
   );
@@ -472,13 +475,14 @@ function scoreSearchDoc(doc, q, matchType) {
   else score += 300;
   if (shortCjkPrefix && matchType === "prefix" && type === "stock") score += 250;
   if (shortCjkPrefix && matchType === "prefix" && type === "etf") score -= 260;
+  if (exactHighConfidenceTopicAlias) score += 1;
   score += Number(doc.searchWeight || 0);
   score += Number(doc.popularityWeight || 0) * 0.15;
   return score;
 }
 
 function searchTypePriority(type) {
-  return { stock: 1, topic: 2, product: 3, etf: 4, industry: 5, company: 6 }[type] || 9;
+  return { stock: 1, product: 2, topic: 3, etf: 4, industry: 5, company: 6 }[type] || 9;
 }
 
 function refsForGrams(index, q) {
