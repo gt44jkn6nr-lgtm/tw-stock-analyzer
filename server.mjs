@@ -6,10 +6,11 @@ import { execFileSync } from "node:child_process";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(__dirname, "public");
+const dataDir = path.join(__dirname, "data");
 const port = Number(process.env.PORT || 8787);
 const accessToken = process.env.ACCESS_TOKEN || "";
-const appVersion = "1.3.0-phase2-news";
-const frontendVersion = "phase2-news-1";
+const appVersion = "1.4.0-phase2-master-search-dev";
+const frontendVersion = "phase2-master-search-1";
 const deployedAt = new Date().toISOString();
 const includedCommits = ["cd3171c", "90aa9b8"];
 const gitCommit =
@@ -130,6 +131,10 @@ const dashboardUniverse = [
 ];
 
 const stockMap = new Map(stockUniverse.map((item) => [item.stockNo, item]));
+let masterCache = null;
+let searchIndexCache = null;
+let masterStockNoMap = new Map();
+let masterCompanyIdMap = new Map();
 
 const industryQuoteItems = [
   { group: "貴金屬", name: "黃金", symbol: "00635U", note: "黃金 ETF 代理指標" },
@@ -317,6 +322,235 @@ function assertAccess(url, res) {
     return false;
   }
   return true;
+}
+
+function httpError(statusCode, message) {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
+}
+
+function normalizeSearchText(value) {
+  return String(value || "")
+    .normalize("NFKC")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+async function readDataJson(file, fallback) {
+  try {
+    return JSON.parse(await fs.readFile(path.join(dataDir, file), "utf8"));
+  } catch {
+    return fallback;
+  }
+}
+
+async function loadMasterData({ force = false } = {}) {
+  if (masterCache && !force) return { ...masterCache, cacheHit: true };
+  const [stocks, version, products, topics, companies] = await Promise.all([
+    readDataJson("master-stock.json", []),
+    readDataJson("master-version.json", null),
+    readDataJson("master-product.json", []),
+    readDataJson("master-topic.json", []),
+    readDataJson("master-company.json", []),
+  ]);
+  masterStockNoMap = new Map();
+  masterCompanyIdMap = new Map();
+  for (const item of stocks) {
+    if (!item?.stockNo || !item?.companyId) continue;
+    const existing = masterStockNoMap.get(String(item.stockNo));
+    if (!existing || (existing.isETF && !item.isETF) || (existing.market !== "TWSE" && item.market === "TWSE")) {
+      masterStockNoMap.set(String(item.stockNo), item);
+    }
+    masterCompanyIdMap.set(item.companyId, item);
+  }
+  masterCache = {
+    loadedAt: new Date().toISOString(),
+    stocks,
+    version,
+    products,
+    topics,
+    companies,
+    cacheHit: false,
+  };
+  return masterCache;
+}
+
+async function loadSearchIndex({ force = false } = {}) {
+  if (searchIndexCache && !force) return { ...searchIndexCache, cacheHit: true };
+  const index = await readDataJson("search-index.json", null);
+  if (!index?.documents) throw httpError(503, "Search index is not available. Run npm run build:master-data first.");
+  searchIndexCache = {
+    loadedAt: new Date().toISOString(),
+    index,
+    cacheHit: false,
+  };
+  return searchIndexCache;
+}
+
+function masterStockSync(stockNo) {
+  return masterStockNoMap.get(String(stockNo || "").trim()) || stockMap.get(String(stockNo || "").trim()) || null;
+}
+
+async function requireMasterStock(stockNo) {
+  const clean = String(stockNo || "").trim();
+  await loadMasterData();
+  const item = masterStockNoMap.get(clean);
+  if (!item || item.status === "delisted") throw httpError(404, "查無此股票或資料不足，請確認股票代號");
+  return item;
+}
+
+function searchGroups() {
+  return {
+    stocks: [],
+    etfs: [],
+    products: [],
+    topics: [],
+    industries: [],
+    companies: [],
+    supplyChainEvents: [],
+    announcements: [],
+  };
+}
+
+function groupKeyForType(type) {
+  if (type === "stock") return "stocks";
+  if (type === "etf") return "etfs";
+  if (type === "product") return "products";
+  if (type === "topic") return "topics";
+  if (type === "industry") return "industries";
+  if (type === "announcement") return "announcements";
+  if (type === "supply_chain_event") return "supplyChainEvents";
+  return "companies";
+}
+
+function matchBasis(doc, q) {
+  const exactFields = [
+    ["stockNo", doc.stockNo, "stockNo_exact"],
+    ["name", doc.name, "name_exact"],
+    ["companyName", doc.companyName, "company_exact"],
+    ["englishName", doc.englishName, "english_exact"],
+  ];
+  for (const [, value, basis] of exactFields) {
+    if (value && normalizeSearchText(value) === q) return basis;
+  }
+  if ((doc.aliases || []).some((item) => normalizeSearchText(item.alias || item) === q)) return "alias_exact";
+  return "index_match";
+}
+
+function scoreSearchDoc(doc, q, matchType) {
+  let score = 0;
+  const type = doc.type;
+  const exactStockNo = doc.stockNo && normalizeSearchText(doc.stockNo) === q;
+  const exactName = doc.name && normalizeSearchText(doc.name) === q;
+  const exactAlias = (doc.aliases || []).some((item) => normalizeSearchText(item.alias || item) === q);
+  const exactEnglish = doc.englishName && normalizeSearchText(doc.englishName) === q;
+  if (exactStockNo) score += 1000;
+  else if (exactName) score += 920;
+  else if (exactAlias) score += 860;
+  else if (exactEnglish) score += 780;
+  else if (type === "etf") score += 700;
+  else if (type === "topic") score += 620;
+  else if (type === "product") score += 600;
+  else if (type === "industry") score += 540;
+  else if (matchType === "prefix") score += 430;
+  else if (matchType === "fuzzy") score += 250;
+  else score += 300;
+  score += Number(doc.searchWeight || 0);
+  score += Number(doc.popularityWeight || 0) * 0.15;
+  return score;
+}
+
+function refsForGrams(index, q) {
+  const compact = q.replace(/\s+/g, "");
+  const grams = new Set();
+  if (compact.length <= 2) grams.add(compact);
+  for (let i = 0; i < compact.length - 1; i++) grams.add(compact.slice(i, i + 2));
+  for (let i = 0; i < compact.length - 2; i++) grams.add(compact.slice(i, i + 3));
+  const counts = new Map();
+  for (const gram of grams) {
+    for (const ref of index.fuzzyIndex?.[gram] || []) counts.set(ref, (counts.get(ref) || 0) + 1);
+  }
+  return [...counts.entries()]
+    .filter(([, count]) => count >= Math.max(1, Math.min(2, grams.size)))
+    .sort((a, b) => b[1] - a[1])
+    .map(([ref]) => ref);
+}
+
+async function runSearch(query, { limit = 20, suggestions = false } = {}) {
+  const start = performance.now();
+  const { index, cacheHit } = await loadSearchIndex();
+  const q = normalizeSearchText(query);
+  const max = Math.min(Math.max(Number(limit) || 10, 1), suggestions ? 10 : 50);
+  if (!q) {
+    return {
+      query,
+      results: [],
+      groups: searchGroups(),
+      metadata: { searchTimeMs: 0, matchedCount: 0, exactCount: 0, fuzzyCount: 0, cacheHit },
+    };
+  }
+
+  const candidates = new Map();
+  const addCandidates = (refs, matchType) => {
+    for (const ref of refs || []) {
+      const doc = index.documents[ref];
+      if (!doc) continue;
+      const current = candidates.get(ref);
+      const score = scoreSearchDoc(doc, q, matchType);
+      if (!current || score > current.score) {
+        candidates.set(ref, {
+          ...doc,
+          matchType,
+          matchBasis: matchBasis(doc, q),
+          score,
+        });
+      }
+    }
+  };
+
+  const exactRefs = index.exactMap?.[q] || [];
+  addCandidates(exactRefs, "exact");
+  addCandidates(index.prefixIndex?.[q] || [], "prefix");
+  const fuzzyRefs = refsForGrams(index, q);
+  addCandidates(fuzzyRefs, "fuzzy");
+
+  const results = [...candidates.values()]
+    .sort((a, b) => b.score - a.score || String(a.stockNo || a.name).localeCompare(String(b.stockNo || b.name)))
+    .slice(0, max)
+    .map((item) => ({
+      id: item.id,
+      type: item.type,
+      stockNo: item.stockNo || null,
+      companyId: item.companyId || null,
+      name: item.name,
+      companyName: item.companyName || null,
+      englishName: item.englishName || null,
+      market: item.market || null,
+      marketSegment: item.marketSegment || null,
+      industry: item.industry || item.category || null,
+      isETF: Boolean(item.isETF),
+      matchType: item.matchType,
+      matchBasis: item.matchBasis,
+      score: Math.round(item.score * 100) / 100,
+      aliases: (item.aliases || []).slice(0, 5),
+    }));
+  const groups = searchGroups();
+  for (const result of results) groups[groupKeyForType(result.type)].push(result);
+  return {
+    query,
+    results,
+    groups,
+    metadata: {
+      searchTimeMs: Math.round((performance.now() - start) * 100) / 100,
+      matchedCount: results.length,
+      exactCount: results.filter((item) => item.matchType === "exact").length,
+      fuzzyCount: results.filter((item) => item.matchType === "fuzzy").length,
+      cacheHit,
+      indexDocumentCount: index.documentCount,
+    },
+  };
 }
 
 function sma(values, period) {
@@ -916,7 +1150,7 @@ async function buildFinancialSummary(stockNo, overrides = {}) {
   const completenessCount = [revenue, income, valuation].filter(Boolean).length;
   return {
     stockNo,
-    name: income?.companyName || revenue?.companyName || stockMap.get(stockNo)?.name || stockNo,
+    name: income?.companyName || revenue?.companyName || masterStockSync(stockNo)?.shortName || stockMap.get(stockNo)?.name || stockNo,
     actual: {
       completed_quarters: income?.completedQuarters ?? 0,
       cumulative_eps: income?.cumulativeEps ?? null,
@@ -1050,10 +1284,11 @@ function buildStockPayload(stockNo, title, market, source, rows, sourceUrl) {
     bollinger: bollinger(closes, 20, 2),
     macd: macd(closes),
   };
-  const meta = stockMap.get(stockNo);
+  const meta = masterStockSync(stockNo);
   return {
     stockNo,
-    name: meta?.name || stockNo,
+    name: meta?.shortName || meta?.name || stockNo,
+    companyId: meta?.companyId || null,
     industry: meta?.industry || "未分類",
     title,
     market,
@@ -1700,7 +1935,7 @@ async function buildTimeline(stockNo, params, options = {}) {
     const bd = b.eventDate || b.announcedAt || b.publishedAt || "";
     return bd.localeCompare(ad);
   });
-  const companyName = deduped.find((item) => item.companyName)?.companyName || stockMap.get(stockNo)?.name || stockNo;
+  const companyName = deduped.find((item) => item.companyName)?.companyName || masterStockSync(stockNo)?.shortName || stockMap.get(stockNo)?.name || stockNo;
   const staleCount = sourceStatus.filter((item) => item.stale).length;
   return {
     stockNo,
@@ -2037,7 +2272,7 @@ async function buildDashboard() {
 async function buildRevenueRadar(filter = "all") {
   const settled = await Promise.allSettled(
     dashboardUniverse.map(async (stockNo) => {
-      const meta = stockMap.get(stockNo);
+      const meta = masterStockSync(stockNo);
       const revenueRows = await fetchRevenue(stockNo, 4);
       const revenue = analyzeRevenue(revenueRows);
       if (!revenue) return null;
@@ -2050,7 +2285,7 @@ async function buildRevenueRadar(filter = "all") {
       if (priceLag) items.push("營收成長但股價尚未明顯上漲");
       const row = {
         stockNo,
-        name: meta?.name || stockNo,
+        name: meta?.shortName || meta?.name || stockNo,
         industry: meta?.industry || "未分類",
         latestRevenue: revenue.latest.revenue,
         yoy: revenue.latest.yoy,
@@ -2116,6 +2351,11 @@ async function serveStatic(req, res) {
     return;
   }
   const url = new URL(req.url, `http://${req.headers.host}`);
+  if (url.pathname === "/favicon.ico") {
+    res.writeHead(204, securityHeaders());
+    res.end();
+    return;
+  }
   const filePath = path.normalize(path.join(publicDir, url.pathname === "/" ? "index.html" : url.pathname));
   if (!filePath.startsWith(publicDir)) {
     res.writeHead(403);
@@ -2166,14 +2406,90 @@ const server = http.createServer(async (req, res) => {
       );
       return;
     }
+    if (url.pathname === "/api/master/status") {
+      if (!assertAccess(url, res)) return;
+      const master = await loadMasterData();
+      const search = await loadSearchIndex().catch(() => null);
+      sendSuccess(
+        res,
+        {
+          schemaVersion: master.version?.schemaVersion || null,
+          buildVersion: master.version?.buildVersion || null,
+          generatedAt: master.version?.generatedAt || null,
+          recordCount: master.version?.recordCount || { total: master.stocks.length },
+          stale: Boolean(master.version?.stale),
+          sourceStatus: master.version?.sourceStatus || [],
+          checksum: master.version?.checksum || null,
+          cache: {
+            masterLoadedAt: master.loadedAt,
+            masterCacheHit: master.cacheHit,
+            searchLoadedAt: search?.loadedAt || null,
+            searchCacheHit: search?.cacheHit ?? null,
+            indexDocumentCount: search?.index?.documentCount || null,
+          },
+          incrementalUpdate: master.version?.incrementalUpdate || null,
+        },
+        200,
+        sourceMeta({ data_source: "Master Data memory cache", reporting_period: master.version?.checksum || null, confidence: 0.95 }),
+      );
+      return;
+    }
+    if (url.pathname === "/api/master") {
+      if (!assertAccess(url, res)) return;
+      const master = await loadMasterData();
+      const type = url.searchParams.get("type") || "stocks";
+      const limit = Math.min(Math.max(Number(url.searchParams.get("limit") || 5000), 1), 5000);
+      const payload = {
+        fetchedAt: new Date().toISOString(),
+        version: master.version,
+        type,
+        items:
+          type === "products"
+            ? master.products.slice(0, limit)
+            : type === "topics"
+              ? master.topics.slice(0, limit)
+              : type === "companies"
+                ? master.companies.slice(0, limit)
+                : master.stocks.slice(0, limit),
+        metadata: sourceMeta({ data_source: "Master Data JSON + memory cache", reporting_period: master.version?.checksum || null, confidence: 0.95 }),
+      };
+      sendSuccess(res, payload);
+      return;
+    }
+    if (url.pathname === "/api/search" || url.pathname === "/api/search/suggestions") {
+      if (!assertAccess(url, res)) return;
+      await loadMasterData();
+      const query = url.searchParams.get("q") || url.searchParams.get("query") || "";
+      const limit = url.pathname.endsWith("/suggestions") ? 10 : Number(url.searchParams.get("limit") || 20);
+      const data = await runSearch(query, { limit, suggestions: url.pathname.endsWith("/suggestions") });
+      sendSuccess(res, data, 200, sourceMeta({ data_source: "Search Index memory cache", reporting_period: data.metadata?.indexDocumentCount || null, confidence: 0.9 }));
+      return;
+    }
+    if (url.pathname === "/api/search/history" || url.pathname === "/api/search/recent") {
+      if (!assertAccess(url, res)) return;
+      sendSuccess(res, { fetchedAt: new Date().toISOString(), items: [], note: "User-specific search history is reserved for the account sync phase." }, 200, sourceMeta({ data_source: "search history placeholder", confidence: 0.6 }));
+      return;
+    }
+    if (url.pathname === "/api/search/popular") {
+      if (!assertAccess(url, res)) return;
+      const data = await runSearch("", { limit: 10 });
+      const { index } = await loadSearchIndex();
+      const items = Object.values(index.documents)
+        .sort((a, b) => Number(b.popularityWeight || 0) - Number(a.popularityWeight || 0))
+        .slice(0, 10);
+      sendSuccess(res, { fetchedAt: new Date().toISOString(), items, metadata: data.metadata }, 200, sourceMeta({ data_source: "Search Index popularityWeight", confidence: 0.75 }));
+      return;
+    }
     if (url.pathname === "/api/universe") {
       if (!assertAccess(url, res)) return;
-      sendSuccess(res, { fetchedAt: new Date().toISOString(), items: stockUniverse }, 200, sourceMeta({ data_source: "server stock universe", confidence: 0.7 }));
+      const master = await loadMasterData();
+      sendSuccess(res, { fetchedAt: new Date().toISOString(), items: master.stocks }, 200, sourceMeta({ data_source: "Master Data stock universe", confidence: 0.95 }));
       return;
     }
     if (url.pathname === "/api/twse") {
       if (!assertAccess(url, res)) return;
       const stockNo = url.searchParams.get("stockNo") || "2330";
+      await requireMasterStock(stockNo);
       const months = Math.min(Math.max(Number(url.searchParams.get("months") || 12), 3), 36);
       const data = await fetchStock(stockNo, months);
       sendSuccess(res, data);
@@ -2182,6 +2498,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/ai-summary") {
       if (!assertAccess(url, res)) return;
       const stockNo = url.searchParams.get("stockNo") || "2330";
+      await requireMasterStock(stockNo);
       const { data } = await withCache(cacheKey(url.pathname, url.searchParams), 10 * 60 * 1000, () => buildAiSummaryResponse(stockNo));
       sendSuccess(res, data);
       return;
@@ -2189,6 +2506,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/financial") {
       if (!assertAccess(url, res)) return;
       const stockNo = url.searchParams.get("stockNo") || "2330";
+      await requireMasterStock(stockNo);
       const overrides = {
         quarterRevenueGrowth: url.searchParams.has("quarterRevenueGrowth") ? Number(url.searchParams.get("quarterRevenueGrowth")) : undefined,
         grossMargin: url.searchParams.has("grossMargin") ? Number(url.searchParams.get("grossMargin")) : undefined,
@@ -2221,7 +2539,7 @@ const server = http.createServer(async (req, res) => {
       if (!assertAccess(url, res)) return;
       const stockNo = url.searchParams.get("stockNo") || "2330";
       const params = parseTimelineParams(url);
-      await fetchStock(stockNo, 3);
+      await requireMasterStock(stockNo);
       const fixture = process.env.ENABLE_TEST_FIXTURES === "1" ? url.searchParams.get("fixture") : null;
       const { data } = await withCache(cacheKey(url.pathname, url.searchParams), 10 * 60 * 1000, () => buildTimeline(stockNo, params, { fixture }));
       sendSuccess(res, data);
@@ -2249,12 +2567,14 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === "/api/dashboard") {
       if (!assertAccess(url, res)) return;
+      await loadMasterData();
       const { data, cache } = await withCache(cacheKey(url.pathname, url.searchParams), 5 * 60 * 1000, () => buildDashboard());
       sendSuccess(res, data, 200, cache ? sourceMeta({ data_source: "server cache", is_estimated: false, confidence: 0.5 }) : undefined);
       return;
     }
     if (url.pathname === "/api/revenue-radar") {
       if (!assertAccess(url, res)) return;
+      await loadMasterData();
       const data = await buildRevenueRadar(url.searchParams.get("filter") || "all");
       sendSuccess(res, data);
       return;

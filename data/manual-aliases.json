@@ -1,0 +1,30 @@
+{
+  "TWSE-2330": [
+    { "alias": "TSMC", "source": "manual_alias", "confidence": 1 },
+    { "alias": "台積", "source": "manual_alias", "confidence": 1 },
+    { "alias": "台積電", "source": "manual_alias", "confidence": 1 }
+  ],
+  "TWSE-2454": [
+    { "alias": "MTK", "source": "manual_alias", "confidence": 1 },
+    { "alias": "聯發", "source": "manual_alias", "confidence": 1 },
+    { "alias": "聯發科", "source": "manual_alias", "confidence": 1 }
+  ],
+  "TPEx-5425": [
+    { "alias": "台半", "source": "manual_alias", "confidence": 1 },
+    { "alias": "TSC", "source": "manual_alias", "confidence": 0.9 },
+    { "alias": "台灣半導體", "source": "manual_alias", "confidence": 1 }
+  ],
+  "TWSE-8105": [
+    { "alias": "凌巨", "source": "manual_alias", "confidence": 1 }
+  ],
+  "TWSE-6274": [
+    { "alias": "台燿", "source": "manual_alias", "confidence": 1 }
+  ],
+  "TWSE-2481": [
+    { "alias": "強茂", "source": "manual_alias", "confidence": 1 },
+    { "alias": "PANJIT", "source": "manual_alias", "confidence": 0.9 }
+  ],
+  "TWSE-8261": [
+    { "alias": "富鼎", "source": "manual_alias", "confidence": 1 }
+  ]
+}

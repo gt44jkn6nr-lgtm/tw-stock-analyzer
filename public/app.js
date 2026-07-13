@@ -29,6 +29,8 @@ let latestFinancialData = null;
 let selectedTimelineType = "all";
 let chartZoom = 1;
 let drawingStore = loadDrawingStore();
+let masterLookup = new Map();
+let searchDebounce = null;
 const drawingStrokes = [];
 
 const builtInWatchlist = [
@@ -141,6 +143,127 @@ function formatNumber(value) {
 
 function formatMoney(value) {
   return value == null || !Number.isFinite(value) ? "--" : moneyFmt.format(value);
+}
+
+function typeLabel(type) {
+  const labels = {
+    stock: "股票",
+    etf: "ETF",
+    product: "產品",
+    topic: "題材",
+    industry: "產業",
+    company: "公司",
+    supply_chain_event: "供應鏈事件",
+    announcement: "公告",
+  };
+  return labels[type] || type || "結果";
+}
+
+function groupLabel(key) {
+  const labels = {
+    stocks: "股票",
+    etfs: "ETF",
+    products: "產品",
+    topics: "題材",
+    industries: "產業",
+    companies: "公司",
+    supplyChainEvents: "供應鏈事件",
+    announcements: "公告",
+  };
+  return labels[key] || key;
+}
+
+function searchItemSubtitle(item) {
+  return [item.marketSegment || item.market, item.industry, item.matchBasis].filter(Boolean).join("｜");
+}
+
+function renderSuggestionItems(items) {
+  return items
+    .slice(0, 10)
+    .map(
+      (item) => `
+        <button type="button" class="search-suggestion" data-search-id="${escapeHtml(item.id)}" data-search-stock="${escapeHtml(item.stockNo || "")}">
+          <span>
+            <strong>${escapeHtml(item.stockNo ? `${item.stockNo} ${item.name}` : item.name)}</strong>
+            <small>${escapeHtml(searchItemSubtitle(item))}</small>
+          </span>
+          <span class="search-type-pill">${escapeHtml(typeLabel(item.type))}</span>
+        </button>
+      `,
+    )
+    .join("");
+}
+
+async function loadSearchSuggestions(query) {
+  const box = document.getElementById("globalSearchSuggestions");
+  if (!box) return;
+  if (!String(query || "").trim()) {
+    box.hidden = true;
+    box.innerHTML = "";
+    return;
+  }
+  const data = await fetchApi("/api/search/suggestions", { q: query });
+  const items = data.results || data.suggestions || [];
+  box.innerHTML = items.length ? renderSuggestionItems(items) : `<div class="search-suggestion"><span><strong>查無結果</strong><small>沒有符合的股票、ETF、產品或題材</small></span></div>`;
+  box.hidden = false;
+}
+
+function renderSearchResults(data) {
+  const panel = document.getElementById("globalSearchResults");
+  if (!panel) return;
+  const groups = data.groups || {};
+  const groupHtml = Object.entries(groups)
+    .filter(([, items]) => Array.isArray(items) && items.length)
+    .map(
+      ([key, items]) => `
+        <article class="search-result-group">
+          <h3>${escapeHtml(groupLabel(key))}</h3>
+          ${items
+            .map(
+              (item) => `
+                <button type="button" class="search-result-item" data-search-id="${escapeHtml(item.id)}" data-search-stock="${escapeHtml(item.stockNo || "")}">
+                  <span>
+                    <strong>${escapeHtml(item.stockNo ? `${item.stockNo} ${item.name}` : item.name)}</strong>
+                    <small>${escapeHtml(searchItemSubtitle(item))}</small>
+                  </span>
+                  <span class="search-type-pill">${escapeHtml(typeLabel(item.type))}</span>
+                </button>
+              `,
+            )
+            .join("")}
+        </article>
+      `,
+    )
+    .join("");
+  panel.innerHTML = `
+    <div class="search-results-meta">
+      <span>Query: ${escapeHtml(data.query || "")}</span>
+      <span>${formatNumber(data.metadata?.matchedCount || 0)} matches</span>
+      <span>${formatNumber(data.metadata?.searchTimeMs || 0)} ms</span>
+      <span>cache ${data.metadata?.cacheHit ? "hit" : "miss"}</span>
+    </div>
+    <div class="search-result-groups">${groupHtml || `<article class="search-result-group"><h3>查無結果</h3><small>沒有符合的 Master Data 或搜尋索引項目。</small></article>`}</div>
+  `;
+  panel.hidden = false;
+}
+
+async function runGlobalSearch(query = document.getElementById("globalSearch")?.value || "") {
+  const clean = String(query || "").trim();
+  if (!clean) return;
+  const data = await fetchApi("/api/search", { q: clean, limit: 20 });
+  renderSearchResults(data);
+}
+
+async function loadMasterForClient() {
+  try {
+    const data = await fetchApi("/api/master", { limit: 5000 });
+    masterLookup = new Map((data.items || []).map((item) => [String(item.stockNo), item]));
+    watchlist = uniqueWatchlist(watchlist);
+    saveWatchlist();
+    renderWatchlist();
+  } catch {
+    masterLookup = new Map();
+  }
 }
 
 function inputPercent(id, value) {
@@ -389,6 +512,44 @@ function addWatchItem(stockNo, name, industry) {
   saveWatchlist();
   renderWatchlist();
 }
+
+function uniqueWatchlistV25(items) {
+  const map = new Map();
+  for (const item of items) {
+    if (!item?.stockNo) continue;
+    const stockNo = String(item.stockNo);
+    const master = masterLookup.get(stockNo);
+    map.set(item.companyId || master?.companyId || stockNo, {
+      companyId: item.companyId || master?.companyId || `TWSE-${stockNo}`,
+      stockNo,
+      name: master?.shortName || item.name || stockNo,
+      industry: master?.industry || item.industry || "未分類 / 未知",
+      market: master?.market || item.market || null,
+      marketSegment: master?.marketSegment || item.marketSegment || null,
+    });
+  }
+  return [...map.values()];
+}
+
+function addWatchItemV25(stockNo, name, industry) {
+  const cleanStock = String(stockNo || "").trim();
+  if (!cleanStock) return;
+  const master = masterLookup.get(cleanStock);
+  const item = {
+    companyId: master?.companyId || `TWSE-${cleanStock}`,
+    stockNo: cleanStock,
+    name: String(name || master?.shortName || cleanStock).trim(),
+    industry: String(industry || master?.industry || "未分類 / 未知").trim(),
+    market: master?.market || null,
+    marketSegment: master?.marketSegment || null,
+  };
+  watchlist = uniqueWatchlistV25([item, ...watchlist]);
+  saveWatchlist();
+  renderWatchlist();
+}
+
+uniqueWatchlist = uniqueWatchlistV25;
+addWatchItem = addWatchItemV25;
 
 function loadDrawingStore() {
   return loadJson(drawingStorageKey, {});
@@ -1347,6 +1508,19 @@ document.getElementById("industryTabs")?.addEventListener("click", (event) => {
 });
 
 document.body.addEventListener("click", (event) => {
+  const searchPick = event.target.closest("[data-search-id]");
+  if (searchPick) {
+    const stockNo = searchPick.dataset.searchStock;
+    document.getElementById("globalSearchSuggestions")?.setAttribute("hidden", "");
+    if (stockNo) {
+      document.getElementById("stockNo").value = stockNo;
+      location.hash = "#analysis";
+      loadStock().catch((error) => {
+        document.getElementById("status").textContent = error.message;
+      });
+    }
+    return;
+  }
   const removeWatch = event.target.closest("[data-remove]");
   if (removeWatch) {
     event.preventDefault();
@@ -1364,6 +1538,37 @@ document.body.addEventListener("click", (event) => {
       document.getElementById("status").textContent = error.message;
     });
   }
+});
+
+document.getElementById("globalSearch")?.addEventListener("input", (event) => {
+  clearTimeout(searchDebounce);
+  const query = event.target.value;
+  searchDebounce = setTimeout(() => {
+    loadSearchSuggestions(query).catch(() => {
+      const box = document.getElementById("globalSearchSuggestions");
+      if (box) {
+        box.hidden = false;
+        box.innerHTML = `<div class="search-suggestion"><span><strong>搜尋暫時無法使用</strong><small>請稍後再試</small></span></div>`;
+      }
+    });
+  }, 140);
+});
+
+document.getElementById("globalSearch")?.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  document.getElementById("globalSearchSuggestions")?.setAttribute("hidden", "");
+  runGlobalSearch().catch(() => {});
+});
+
+document.getElementById("globalSearchButton")?.addEventListener("click", () => {
+  document.getElementById("globalSearchSuggestions")?.setAttribute("hidden", "");
+  runGlobalSearch().catch(() => {});
+});
+
+document.addEventListener("click", (event) => {
+  if (event.target.closest(".global-search-box")) return;
+  document.getElementById("globalSearchSuggestions")?.setAttribute("hidden", "");
 });
 
 document.getElementById("industryQuotes")?.addEventListener("click", (event) => {
@@ -1502,6 +1707,7 @@ updateNotifyButton();
 updateZoomLabel();
 renderWatchlist();
 renderAlerts();
+loadMasterForClient().catch(() => {});
 loadDashboard().catch((error) => {
   document.getElementById("dashboardMeta").textContent = error.message;
 });

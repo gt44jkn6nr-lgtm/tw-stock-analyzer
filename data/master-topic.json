@@ -1,0 +1,101 @@
+[
+  {
+    "topicId": "topic-ai-server",
+    "name": "AI Server",
+    "aliases": [
+      { "alias": "AI伺服器", "source": "manual_topic", "confidence": 1 },
+      { "alias": "AI Server", "source": "manual_topic", "confidence": 1 }
+    ],
+    "category": "題材",
+    "popularityWeight": 95,
+    "source": "manual_curated",
+    "confidence": 0.75
+  },
+  {
+    "topicId": "topic-gb300",
+    "name": "GB300",
+    "aliases": [
+      { "alias": "NVIDIA GB300", "source": "manual_topic", "confidence": 0.9 },
+      { "alias": "GB300", "source": "manual_topic", "confidence": 1 }
+    ],
+    "category": "題材",
+    "popularityWeight": 92,
+    "source": "manual_curated",
+    "confidence": 0.7
+  },
+  {
+    "topicId": "topic-mosfet",
+    "name": "MOSFET",
+    "aliases": [
+      { "alias": "功率MOSFET", "source": "manual_topic", "confidence": 0.95 },
+      { "alias": "Power MOSFET", "source": "manual_topic", "confidence": 0.95 }
+    ],
+    "category": "題材",
+    "popularityWeight": 88,
+    "source": "manual_curated",
+    "confidence": 0.8
+  },
+  {
+    "topicId": "topic-memory",
+    "name": "記憶體",
+    "aliases": [
+      { "alias": "DRAM", "source": "manual_topic", "confidence": 0.95 },
+      { "alias": "NAND", "source": "manual_topic", "confidence": 0.9 },
+      { "alias": "HBM", "source": "manual_topic", "confidence": 0.95 },
+      { "alias": "DDR5", "source": "manual_topic", "confidence": 0.95 }
+    ],
+    "category": "題材",
+    "popularityWeight": 90,
+    "source": "manual_curated",
+    "confidence": 0.78
+  },
+  {
+    "topicId": "topic-bbu",
+    "name": "BBU",
+    "aliases": [
+      { "alias": "Battery Backup Unit", "source": "manual_topic", "confidence": 0.9 },
+      { "alias": "備援電池", "source": "manual_topic", "confidence": 0.85 }
+    ],
+    "category": "題材",
+    "popularityWeight": 84,
+    "source": "manual_curated",
+    "confidence": 0.7
+  },
+  {
+    "topicId": "topic-cpo",
+    "name": "CPO",
+    "aliases": [
+      { "alias": "共同封裝光學", "source": "manual_topic", "confidence": 0.9 },
+      { "alias": "Co-Packaged Optics", "source": "manual_topic", "confidence": 0.9 }
+    ],
+    "category": "題材",
+    "popularityWeight": 86,
+    "source": "manual_curated",
+    "confidence": 0.72
+  },
+  {
+    "topicId": "topic-glass-substrate",
+    "name": "玻璃基板",
+    "aliases": [
+      { "alias": "Glass Substrate", "source": "manual_topic", "confidence": 0.9 },
+      { "alias": "玻璃載板", "source": "manual_topic", "confidence": 0.85 }
+    ],
+    "category": "題材",
+    "popularityWeight": 82,
+    "source": "manual_curated",
+    "confidence": 0.7
+  },
+  {
+    "topicId": "topic-supply-shortage",
+    "name": "原物料漲價",
+    "aliases": [
+      { "alias": "缺貨", "source": "manual_topic", "confidence": 0.8 },
+      { "alias": "漲價", "source": "manual_topic", "confidence": 0.8 },
+      { "alias": "交期拉長", "source": "manual_topic", "confidence": 0.75 }
+    ],
+    "category": "題材",
+    "popularityWeight": 80,
+    "source": "manual_curated",
+    "confidence": 0.65
+  }
+]

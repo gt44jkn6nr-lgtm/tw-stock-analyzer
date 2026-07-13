@@ -111,6 +111,129 @@ small {
   backdrop-filter: blur(10px);
 }
 
+.global-search-section {
+  position: sticky;
+  top: 76px;
+  z-index: 9;
+  margin: 0 0 16px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(15, 23, 36, .96);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .24);
+}
+
+.global-search-box {
+  position: relative;
+  display: grid;
+  gap: 8px;
+}
+
+.global-search-input-wrap {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.global-search-input-wrap input {
+  width: 100%;
+}
+
+.search-suggestions {
+  position: absolute;
+  z-index: 1;
+  top: 64px;
+  left: 0;
+  right: 0;
+  max-height: 390px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0d1420;
+  box-shadow: 0 18px 36px rgba(0, 0, 0, .36);
+}
+
+.search-suggestion,
+.search-result-item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+}
+
+.search-suggestion:hover,
+.search-result-item:hover {
+  background: var(--panel-3);
+}
+
+.search-suggestion strong,
+.search-result-item strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-suggestion small,
+.search-result-item small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-type-pill {
+  padding: 3px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: #cbd5e1;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.search-results {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.search-results-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.search-result-groups {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.search-result-group {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+
+.search-result-group h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
 .query,
 .watch-form,
 .alert-form {
@@ -1219,6 +1342,7 @@ canvas {
   }
 
   .topbar,
+  .global-search-section,
   .section-head,
   .panel-head,
   .chart-head,
@@ -1238,6 +1362,19 @@ canvas {
   select,
   button {
     width: 100%;
+  }
+
+  .global-search-section {
+    top: 0;
+  }
+
+  .global-search-input-wrap,
+  .search-result-groups {
+    grid-template-columns: 1fr;
+  }
+
+  .search-suggestions {
+    max-height: 340px;
   }
 
   h1 {

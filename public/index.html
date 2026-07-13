@@ -4,7 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>台股 AI 研究平台</title>
-    <link rel="stylesheet" href="./styles.css?v=phase2-news-1" />
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./styles.css?v=phase2-master-search-1" />
   </head>
   <body>
     <div class="layout">
@@ -47,6 +48,18 @@
             <span id="topStatus" class="status-pill stale">資料狀態確認中</span>
           </div>
         </header>
+
+        <section id="globalSearchSection" class="global-search-section">
+          <div class="global-search-box">
+            <label for="globalSearch">Global Search</label>
+            <div class="global-search-input-wrap">
+              <input id="globalSearch" type="search" autocomplete="off" placeholder="2330、台積電、TSMC、MOSFET、GB300、AI Server" />
+              <button type="button" id="globalSearchButton">搜尋</button>
+            </div>
+            <div id="globalSearchSuggestions" class="search-suggestions" hidden></div>
+          </div>
+          <div id="globalSearchResults" class="search-results" hidden></div>
+        </section>
 
         <section id="dashboard" class="section dashboard-section">
           <div class="section-head">

@@ -1,0 +1,17 @@
+[
+  {
+    "companyId": "INFO-TRENDFORCE",
+    "name": "TrendForce",
+    "localName": "集邦科技",
+    "aliases": [
+      { "alias": "TrendForce", "source": "manual_company", "confidence": 1 },
+      { "alias": "集邦", "source": "manual_company", "confidence": 1 },
+      { "alias": "集邦科技", "source": "manual_company", "confidence": 1 }
+    ],
+    "type": "research_source",
+    "website": "https://www.trendforce.com",
+    "popularityWeight": 75,
+    "source": "manual_curated",
+    "confidence": 0.9
+  }
+]

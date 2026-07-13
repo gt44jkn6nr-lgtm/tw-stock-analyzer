@@ -1,0 +1,73 @@
+[
+  {
+    "productId": "product-mosfet",
+    "name": "MOSFET",
+    "aliases": [
+      { "alias": "功率元件", "source": "manual_product", "confidence": 0.85 },
+      { "alias": "Power MOSFET", "source": "manual_product", "confidence": 0.95 }
+    ],
+    "category": "半導體元件",
+    "popularityWeight": 88,
+    "source": "manual_curated",
+    "confidence": 0.8
+  },
+  {
+    "productId": "product-ddr5",
+    "name": "DDR5",
+    "aliases": [
+      { "alias": "DDR5 DRAM", "source": "manual_product", "confidence": 0.95 },
+      { "alias": "記憶體DDR5", "source": "manual_product", "confidence": 0.9 }
+    ],
+    "category": "記憶體",
+    "popularityWeight": 86,
+    "source": "manual_curated",
+    "confidence": 0.78
+  },
+  {
+    "productId": "product-hbm",
+    "name": "HBM",
+    "aliases": [
+      { "alias": "高頻寬記憶體", "source": "manual_product", "confidence": 0.95 },
+      { "alias": "High Bandwidth Memory", "source": "manual_product", "confidence": 0.9 }
+    ],
+    "category": "記憶體",
+    "popularityWeight": 91,
+    "source": "manual_curated",
+    "confidence": 0.78
+  },
+  {
+    "productId": "product-gb300",
+    "name": "GB300",
+    "aliases": [
+      { "alias": "NVIDIA GB300", "source": "manual_product", "confidence": 0.9 }
+    ],
+    "category": "AI Server",
+    "popularityWeight": 92,
+    "source": "manual_curated",
+    "confidence": 0.7
+  },
+  {
+    "productId": "product-abf",
+    "name": "ABF 載板",
+    "aliases": [
+      { "alias": "ABF", "source": "manual_product", "confidence": 0.95 },
+      { "alias": "ABF Substrate", "source": "manual_product", "confidence": 0.9 }
+    ],
+    "category": "PCB材料",
+    "popularityWeight": 82,
+    "source": "manual_curated",
+    "confidence": 0.76
+  },
+  {
+    "productId": "product-ccl",
+    "name": "銅箔基板",
+    "aliases": [
+      { "alias": "CCL", "source": "manual_product", "confidence": 0.95 },
+      { "alias": "Copper Clad Laminate", "source": "manual_product", "confidence": 0.9 }
+    ],
+    "category": "PCB材料",
+    "popularityWeight": 80,
+    "source": "manual_curated",
+    "confidence": 0.76
+  }
+]
