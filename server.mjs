@@ -1283,8 +1283,8 @@ function finMindRows(result) {
 
 async function findLatestAvailableMonth(stockNo, fetcher, rowParser) {
   const now = new Date();
-  const maxLookbackMonths = 18;
-  const batchSize = 6;
+  const maxLookbackMonths = 48;
+  const batchSize = 12;
   for (let offset = 0; offset < maxLookbackMonths; offset += batchSize) {
     const dates = Array.from({ length: Math.min(batchSize, maxLookbackMonths - offset) }, (_, index) => addMonths(now, -(offset + index)));
     const results = await Promise.all(dates.map((date) => fetcher(stockNo, date).then((result) => ({ date, result })).catch(() => ({ date, result: null }))));
