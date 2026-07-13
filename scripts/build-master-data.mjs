@@ -406,6 +406,8 @@ function buildSearchIndex({ stocks, topics, products, companies, versionChecksum
     fuzzyIndex: setToSortedArrayMap(fuzzy),
     scoring: {
       exactStockNo: 1000,
+      containedStockNo: 990,
+      containedProductTopicOrCompanyName: 900,
       exactStockName: 920,
       alias: 860,
       englishName: 780,

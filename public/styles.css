@@ -172,8 +172,13 @@ small {
 }
 
 .search-suggestion:hover,
-.search-result-item:hover {
+.search-suggestion.active,
+.search-suggestion:focus-visible,
+.search-result-item:hover,
+.search-result-item:focus-visible {
   background: var(--panel-3);
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
 }
 
 .search-suggestion strong,

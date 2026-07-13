@@ -1,0 +1,15 @@
+{
+  "generatedAt": "2026-07-13T16:03:49.677Z",
+  "biggestStrength": "Master Data now provides a shared identity layer for stock, ETF, product, topic, and source-company search.",
+  "biggestDebt": "server.mjs and public/app.js are now too broad for a long-lived AI research platform.",
+  "biggestRisk": "The generated local JSON index is acceptable now, but event/news/supply-chain indexing can outgrow process memory and repository review flow.",
+  "nextBestDirection": "Build Preview with live quality metrics, then split Master/Search into services before starting Supply Chain Intelligence.",
+  "healthSignals": {
+    "crossModuleMasterData": true,
+    "apiConsistency": true,
+    "searchAccuracy": true,
+    "masterDataSize": "1.93 MB",
+    "searchIndexSize": "7.68 MB",
+    "avgSearchMs": 0.4809
+  }
+}

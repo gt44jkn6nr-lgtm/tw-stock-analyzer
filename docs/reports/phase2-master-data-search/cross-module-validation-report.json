@@ -1,0 +1,42 @@
+{
+  "generatedAt": "2026-07-13T16:03:49.655Z",
+  "checks": [
+    {
+      "name": "Financial validates stock through Master Data",
+      "passed": true,
+      "detail": "/api/financial calls requireMasterStock before buildFinancialSummary"
+    },
+    {
+      "name": "Timeline validates stock through Master Data",
+      "passed": true,
+      "detail": "/api/timeline calls requireMasterStock before buildTimeline"
+    },
+    {
+      "name": "Price and technical analysis validate stock through Master Data",
+      "passed": true,
+      "detail": "/api/twse calls requireMasterStock before fetchStock"
+    },
+    {
+      "name": "AI summary validates stock through Master Data",
+      "passed": true,
+      "detail": "/api/ai-summary calls requireMasterStock before buildAiSummaryResponse"
+    },
+    {
+      "name": "Search uses Search Index and Master Data warmup",
+      "passed": true,
+      "detail": "/api/search loads Master Data and queries Search Index"
+    },
+    {
+      "name": "Universe API returns Master Data instead of legacy stockUniverse",
+      "passed": true,
+      "detail": "/api/universe responds with master.stocks"
+    },
+    {
+      "name": "Watchlist stores companyId",
+      "passed": true,
+      "detail": "watchlist normalization and add flow persist companyId"
+    }
+  ],
+  "passed": true,
+  "note": "This is a static architecture gate. Preview validation must also verify live API behavior."
+}

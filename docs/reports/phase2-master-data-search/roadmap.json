@@ -1,0 +1,40 @@
+{
+  "generatedAt": "2026-07-13T16:03:49.677Z",
+  "phases": [
+    {
+      "phase": "Phase 1",
+      "status": "completed",
+      "summary": "AI dashboard, technical analysis, watchlist, alerts, source metadata, security baseline."
+    },
+    {
+      "phase": "Phase 2.1",
+      "status": "completed",
+      "summary": "Financial data and EPS model with actual/model separation."
+    },
+    {
+      "phase": "Phase 2.2",
+      "status": "completed",
+      "summary": "Official news/company announcement/timeline foundation."
+    },
+    {
+      "phase": "Phase 2.5",
+      "status": "preview-ready",
+      "summary": "Master Data + Global Search platform foundation. Preview validation pending."
+    },
+    {
+      "phase": "Phase 3",
+      "status": "not-started",
+      "summary": "Supply Chain Intelligence. Blocked until Master Data Preview is accepted."
+    }
+  ],
+  "technicalDebt": [
+    "Split server.mjs and public/app.js before large Phase 3 expansion.",
+    "Move generated artifacts to a durable artifact strategy.",
+    "Add live API schema validation and Preview performance baselines."
+  ],
+  "knownLimits": [
+    "No AI natural-language answer layer yet.",
+    "No account-backed recent/history search.",
+    "No supply-chain events in Search Index yet."
+  ]
+}

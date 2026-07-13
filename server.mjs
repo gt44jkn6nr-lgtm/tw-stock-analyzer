@@ -24,7 +24,7 @@ const gitCommit =
   })();
 const endpointCache = new Map();
 const rateWindowMs = 60 * 1000;
-const rateLimitMax = 240;
+const rateLimitMax = Number(process.env.RATE_LIMIT_MAX || 240);
 const rateHits = new Map();
 
 const mime = {
@@ -444,14 +444,22 @@ function scoreSearchDoc(doc, q, matchType) {
   const type = doc.type;
   const exactStockNo = doc.stockNo && normalizeSearchText(doc.stockNo) === q;
   const exactName = doc.name && normalizeSearchText(doc.name) === q;
+  const containedStockNo = doc.stockNo && q.includes(normalizeSearchText(doc.stockNo));
+  const containedName = doc.name && q.includes(normalizeSearchText(doc.name));
+  const containedAlias = (doc.aliases || []).some((item) => {
+    const alias = normalizeSearchText(item.alias || item);
+    return alias.length >= 3 && q.includes(alias);
+  });
   const exactAlias = (doc.aliases || []).some((item) => normalizeSearchText(item.alias || item) === q);
   const trustedManualAlias = (doc.aliases || []).some(
     (item) => normalizeSearchText(item.alias || item) === q && item.source === "manual_alias" && Number(item.confidence || 0) >= 0.95,
   );
   const exactEnglish = doc.englishName && normalizeSearchText(doc.englishName) === q;
   if (exactStockNo) score += 1000;
+  else if (containedStockNo) score += 990;
   else if (trustedManualAlias) score += 940;
   else if (exactName) score += 920;
+  else if ((type === "product" || type === "topic" || type === "company") && (containedName || containedAlias)) score += 900;
   else if (exactAlias) score += 860;
   else if (exactEnglish) score += 780;
   else if (type === "etf") score += 700;
@@ -2432,6 +2440,11 @@ const server = http.createServer(async (req, res) => {
             indexDocumentCount: search?.index?.documentCount || null,
           },
           incrementalUpdate: master.version?.incrementalUpdate || null,
+          serverRuntime: {
+            uptimeSec: Math.round(process.uptime()),
+            memoryUsage: process.memoryUsage(),
+            rateLimitMax,
+          },
         },
         200,
         sourceMeta({ data_source: "Master Data memory cache", reporting_period: master.version?.checksum || null, confidence: 0.95 }),

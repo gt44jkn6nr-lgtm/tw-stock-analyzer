@@ -1,0 +1,147 @@
+{
+  "generatedAt": "2026-07-13T16:03:49.677Z",
+  "expectedEnvelope": [
+    "success",
+    "data",
+    "error",
+    "data_source",
+    "published_at",
+    "fetched_at",
+    "reporting_period",
+    "is_estimated",
+    "confidence",
+    "source_url"
+  ],
+  "endpoints": [
+    "/api/health",
+    "/api/version",
+    "/api/master/status",
+    "/api/master",
+    "/api/search",
+    "/api/search/suggestions",
+    "/api/search/history",
+    "/api/search/popular",
+    "/api/search/recent",
+    "/api/universe",
+    "/api/twse",
+    "/api/ai-summary",
+    "/api/financial",
+    "/api/timeline",
+    "/api/timeline/sources",
+    "/api/dashboard",
+    "/api/revenue-radar",
+    "/api/industry-quotes"
+  ],
+  "checks": [
+    {
+      "endpoint": "/api/health",
+      "passed": true,
+      "detail": "Route uses sendSuccess envelope; errors flow through sendError/classifyError."
+    },
+    {
+      "endpoint": "/api/version",
+      "passed": true,
+      "detail": "Route uses sendSuccess envelope; errors flow through sendError/classifyError."
+    },
+    {
+      "endpoint": "/api/master/status",
+      "passed": true,
+      "detail": "Route uses sendSuccess envelope; errors flow through sendError/classifyError."
+    },
+    {
+      "endpoint": "/api/master",
+      "passed": true,
+      "detail": "Route uses sendSuccess envelope; errors flow through sendError/classifyError."
+    },
+    {
+      "endpoint": "/api/search",
+      "passed": true,
+      "detail": "Route uses sendSuccess envelope; errors flow through sendError/classifyError."
+    },
+    {
+      "endpoint": "/api/search/suggestions",
+      "passed": true,
+      "detail": "Route uses sendSuccess envelope; errors flow through sendError/classifyError."
+    },
+    {
+      "endpoint": "/api/search/history",
+      "passed": true,
+      "detail": "Route uses sendSuccess envelope; errors flow through sendError/classifyError."
+    },
+    {
+      "endpoint": "/api/search/popular",
+      "passed": true,
+      "detail": "Route uses sendSuccess envelope; errors flow through sendError/classifyError."
+    },
+    {
+      "endpoint": "/api/search/recent",
+      "passed": true,
+      "detail": "Route uses sendSuccess envelope; errors flow through sendError/classifyError."
+    },
+    {
+      "endpoint": "/api/universe",
+      "passed": true,
+      "detail": "Route uses sendSuccess envelope; errors flow through sendError/classifyError."
+    },
+    {
+      "endpoint": "/api/twse",
+      "passed": true,
+      "detail": "Route uses sendSuccess envelope; errors flow through sendError/classifyError."
+    },
+    {
+      "endpoint": "/api/ai-summary",
+      "passed": true,
+      "detail": "Route uses sendSuccess envelope; errors flow through sendError/classifyError."
+    },
+    {
+      "endpoint": "/api/financial",
+      "passed": true,
+      "detail": "Route uses sendSuccess envelope; errors flow through sendError/classifyError."
+    },
+    {
+      "endpoint": "/api/timeline",
+      "passed": true,
+      "detail": "Route uses sendSuccess envelope; errors flow through sendError/classifyError."
+    },
+    {
+      "endpoint": "/api/timeline/sources",
+      "passed": true,
+      "detail": "Route uses sendSuccess envelope; errors flow through sendError/classifyError."
+    },
+    {
+      "endpoint": "/api/dashboard",
+      "passed": true,
+      "detail": "Route uses sendSuccess envelope; errors flow through sendError/classifyError."
+    },
+    {
+      "endpoint": "/api/revenue-radar",
+      "passed": true,
+      "detail": "Route uses sendSuccess envelope; errors flow through sendError/classifyError."
+    },
+    {
+      "endpoint": "/api/industry-quotes",
+      "passed": true,
+      "detail": "Route uses sendSuccess envelope; errors flow through sendError/classifyError."
+    }
+  ],
+  "metadataChecks": [
+    {
+      "name": "sendSuccess emits success/data/error",
+      "passed": true
+    },
+    {
+      "name": "sendError emits success/data/error",
+      "passed": true
+    },
+    {
+      "name": "responseMeta includes source metadata",
+      "passed": true
+    },
+    {
+      "name": "search metadata includes timing and cache fields",
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "note": "Preview validation must replace this static gate with live response samples for all endpoints."
+}

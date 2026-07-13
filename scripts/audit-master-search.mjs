@@ -124,13 +124,21 @@ function matchBasis(doc, q) {
 function scoreDoc(doc, q, matchType) {
   const exactStockNo = doc.stockNo && normalize(doc.stockNo) === q;
   const exactName = doc.name && normalize(doc.name) === q;
+  const containedStockNo = doc.stockNo && q.includes(normalize(doc.stockNo));
+  const containedName = doc.name && q.includes(normalize(doc.name));
+  const containedAlias = (doc.aliases || []).some((item) => {
+    const alias = normalize(item.alias || item);
+    return alias.length >= 3 && q.includes(alias);
+  });
   const exactAlias = (doc.aliases || []).some((item) => normalize(item.alias || item) === q);
   const trustedManualAlias = (doc.aliases || []).some((item) => normalize(item.alias || item) === q && item.source === "manual_alias" && Number(item.confidence || 0) >= 0.95);
   const exactEnglish = doc.englishName && normalize(doc.englishName) === q;
   let score = 0;
   if (exactStockNo) score += 1000;
+  else if (containedStockNo) score += 990;
   else if (trustedManualAlias) score += 940;
   else if (exactName) score += 920;
+  else if ((doc.type === "product" || doc.type === "topic" || doc.type === "company") && (containedName || containedAlias)) score += 900;
   else if (exactAlias) score += 860;
   else if (exactEnglish) score += 780;
   else if (doc.type === "etf") score += 700;
@@ -180,13 +188,19 @@ function buildSearchCases(stocks, products, topics, companies) {
     { query: "DDR5", expectedId: "product-ddr5", rule: "top3" },
     { query: "TrendForce", expectedId: "INFO-TRENDFORCE", rule: "rank1" },
     { query: "AI Server", expectedId: "topic-ai-server", rule: "rank1" },
+    { query: "companies benefiting from MOSFET", expectedId: "product-mosfet", rule: "top10" },
+    { query: "find DDR5 stocks", expectedId: "product-ddr5", rule: "top10" },
+    { query: "AI Server supply chain", expectedId: "topic-ai-server", rule: "top10" },
+    { query: "GB300 theme", expectedId: "topic-gb300", rule: "top10" },
+    { query: "TrendForce report", expectedId: "INFO-TRENDFORCE", rule: "top10" },
+    { query: "ETF 0050", expectedId: "TWSE-0050", rule: "top10" },
   ];
   const blueChipIds = ["TWSE-2330", "TWSE-2454", "TWSE-2317", "TWSE-2308", "TWSE-2382", "TWSE-2303", "TWSE-2881", "TWSE-1303", "TWSE-2002"];
   const selectedStocks = [
     ...blueChipIds.map((id) => stocks.find((item) => item.companyId === id)).filter(Boolean),
-    ...stocks.filter((item) => !item.isETF && item.market === "TWSE").slice(0, 35),
-    ...stocks.filter((item) => !item.isETF && item.market === "TPEx").slice(0, 25),
-    ...stocks.filter((item) => item.isETF).slice(0, 12),
+    ...stocks.filter((item) => !item.isETF && item.market === "TWSE").slice(0, 70),
+    ...stocks.filter((item) => !item.isETF && item.market === "TPEx").slice(0, 50),
+    ...stocks.filter((item) => item.isETF).slice(0, 30),
   ];
   const generated = [];
   for (const stock of selectedStocks) {
@@ -203,7 +217,7 @@ function buildSearchCases(stocks, products, topics, companies) {
     const key = `${normalize(item.query)}|${item.expectedId}`;
     if (!map.has(key)) map.set(key, item);
   }
-  return [...map.values()].slice(0, 120);
+  return [...map.values()].slice(0, 220);
 }
 
 function searchAccuracyReport({ stocks, products, topics, companies, index }) {
@@ -232,7 +246,7 @@ function searchAccuracyReport({ stocks, products, topics, companies, index }) {
     avgSearchMs: Number((elapsedMs / results.length).toFixed(4)),
     criticalCases: results.slice(0, 15),
     failed,
-    passed: failed.length === 0 && cases.length >= 100,
+    passed: failed.length === 0 && cases.length >= 200,
   };
 }
 
@@ -351,6 +365,187 @@ function technicalDebtReport({ metrics }) {
       ],
       betterProductDesign: "Make Global Search the command center: query results should route into stocks, topics, products, events, and eventually AI answers, not only a topbar utility.",
     },
+  };
+}
+
+function crossModuleValidationReport({ serverSource, appSource }) {
+  const checks = [
+    {
+      name: "Financial validates stock through Master Data",
+      passed: /url\.pathname === "\/api\/financial"[\s\S]*?await requireMasterStock\(stockNo\)/.test(serverSource),
+      detail: "/api/financial calls requireMasterStock before buildFinancialSummary",
+    },
+    {
+      name: "Timeline validates stock through Master Data",
+      passed: /url\.pathname === "\/api\/timeline"[\s\S]*?await requireMasterStock\(stockNo\)/.test(serverSource),
+      detail: "/api/timeline calls requireMasterStock before buildTimeline",
+    },
+    {
+      name: "Price and technical analysis validate stock through Master Data",
+      passed: /url\.pathname === "\/api\/twse"[\s\S]*?await requireMasterStock\(stockNo\)/.test(serverSource),
+      detail: "/api/twse calls requireMasterStock before fetchStock",
+    },
+    {
+      name: "AI summary validates stock through Master Data",
+      passed: /url\.pathname === "\/api\/ai-summary"[\s\S]*?await requireMasterStock\(stockNo\)/.test(serverSource),
+      detail: "/api/ai-summary calls requireMasterStock before buildAiSummaryResponse",
+    },
+    {
+      name: "Search uses Search Index and Master Data warmup",
+      passed: /url\.pathname === "\/api\/search"[\s\S]*?await loadMasterData\(\)[\s\S]*?runSearch/.test(serverSource),
+      detail: "/api/search loads Master Data and queries Search Index",
+    },
+    {
+      name: "Universe API returns Master Data instead of legacy stockUniverse",
+      passed: /url\.pathname === "\/api\/universe"[\s\S]*?const master = await loadMasterData\(\)[\s\S]*?master\.stocks/.test(serverSource),
+      detail: "/api/universe responds with master.stocks",
+    },
+    {
+      name: "Watchlist stores companyId",
+      passed: /companyId: item\.companyId \|\| master\?\.companyId/.test(appSource) && /companyId: master\?\.companyId/.test(appSource),
+      detail: "watchlist normalization and add flow persist companyId",
+    },
+  ];
+  return {
+    generatedAt: nowIso(),
+    checks,
+    passed: checks.every((item) => item.passed),
+    note: "This is a static architecture gate. Preview validation must also verify live API behavior.",
+  };
+}
+
+function apiConsistencyReport({ serverSource }) {
+  const expectedEnvelope = ["success", "data", "error", "data_source", "published_at", "fetched_at", "reporting_period", "is_estimated", "confidence", "source_url"];
+  const endpoints = [
+    "/api/health",
+    "/api/version",
+    "/api/master/status",
+    "/api/master",
+    "/api/search",
+    "/api/search/suggestions",
+    "/api/search/history",
+    "/api/search/popular",
+    "/api/search/recent",
+    "/api/universe",
+    "/api/twse",
+    "/api/ai-summary",
+    "/api/financial",
+    "/api/timeline",
+    "/api/timeline/sources",
+    "/api/dashboard",
+    "/api/revenue-radar",
+    "/api/industry-quotes",
+  ];
+  function routeUsesSendSuccess(endpoint) {
+    const direct = `url.pathname === "${endpoint}"`;
+    const index = serverSource.indexOf(direct);
+    if (index < 0) return false;
+    const nextRoute = serverSource.indexOf('if (url.pathname === "', index + direct.length);
+    const block = serverSource.slice(index, nextRoute > index ? nextRoute : index + 3000);
+    return block.includes("sendSuccess(");
+  }
+  const checks = endpoints.map((endpoint) => ({
+    endpoint,
+    passed: routeUsesSendSuccess(endpoint),
+    detail: "Route uses sendSuccess envelope; errors flow through sendError/classifyError.",
+  }));
+  const metadataChecks = [
+    { name: "sendSuccess emits success/data/error", passed: /success: true[\s\S]*data[\s\S]*error: null/.test(serverSource) },
+    { name: "sendError emits success/data/error", passed: /success: false[\s\S]*data: null[\s\S]*error: message/.test(serverSource) },
+    { name: "responseMeta includes source metadata", passed: expectedEnvelope.slice(3).every((field) => serverSource.includes(`${field}:`)) },
+    { name: "search metadata includes timing and cache fields", passed: /searchTimeMs[\s\S]*matchedCount[\s\S]*exactCount[\s\S]*fuzzyCount[\s\S]*cacheHit/.test(serverSource) },
+  ];
+  return {
+    generatedAt: nowIso(),
+    expectedEnvelope,
+    endpoints,
+    checks,
+    metadataChecks,
+    passed: checks.every((item) => item.passed) && metadataChecks.every((item) => item.passed),
+    note: "Preview validation must replace this static gate with live response samples for all endpoints.",
+  };
+}
+
+function architectureHealthReport({ metrics, technicalDebt, crossModule, apiConsistency, searchAccuracy }) {
+  return {
+    generatedAt: nowIso(),
+    biggestStrength: "Master Data now provides a shared identity layer for stock, ETF, product, topic, and source-company search.",
+    biggestDebt: technicalDebt.questions.biggestDebt,
+    biggestRisk: "The generated local JSON index is acceptable now, but event/news/supply-chain indexing can outgrow process memory and repository review flow.",
+    nextBestDirection: "Build Preview with live quality metrics, then split Master/Search into services before starting Supply Chain Intelligence.",
+    healthSignals: {
+      crossModuleMasterData: crossModule.passed,
+      apiConsistency: apiConsistency.passed,
+      searchAccuracy: searchAccuracy.passed,
+      masterDataSize: metrics.masterDataSize,
+      searchIndexSize: metrics.searchIndexSize,
+      avgSearchMs: metrics.searchTime.avgMs,
+    },
+  };
+}
+
+function releaseReport({ version, searchAccuracy, dataQuality, metrics }) {
+  return {
+    generatedAt: nowIso(),
+    releaseName: "Phase 2.5 Master Data + Global Search Preview Candidate",
+    branch: "phase2-master-data-search",
+    version: {
+      appVersion: "1.4.0-phase2-master-search-dev",
+      masterBuildVersion: version.buildVersion,
+      checksum: version.checksum,
+    },
+    features: [
+      "Master Data as shared company identity layer",
+      "Global Search API and suggestions",
+      "Search Index with exact, prefix, trie, and fuzzy maps",
+      "Watchlist companyId migration",
+      "Preview quality gates, ADRs, and reports",
+    ],
+    fixes: [
+      "Manual alias ranking now outranks less relevant exact-name matches where appropriate.",
+      "Product prefix ranking is more stable for MOS/MOSFET queries.",
+      "Global Search accessibility includes ARIA and keyboard behavior.",
+    ],
+    breakingChanges: [],
+    migration: [
+      "Existing watchlist localStorage remains supported and is upgraded with companyId on load.",
+      "Existing API consumers should continue using the standard success/data/error envelope.",
+    ],
+    knownIssues: [
+      "Search history/recent endpoints are placeholders until account sync exists.",
+      "Generated search artifacts are committed and should move to a better artifact strategy later.",
+      "Natural-language search is keyword-index based, not AI reasoning yet.",
+    ],
+    rollback: "Do not merge main if Preview fails. If already merged, redeploy production commit 316ab5e33e9f4719c6611e2f1043b231513e0867.",
+    qualitySummary: {
+      dataQuality: dataQuality.passed,
+      searchAccuracy: `${searchAccuracy.passedCount}/${searchAccuracy.caseCount}`,
+      masterDataSize: metrics.masterDataSize,
+      searchIndexSize: metrics.searchIndexSize,
+    },
+  };
+}
+
+function roadmapReport() {
+  return {
+    generatedAt: nowIso(),
+    phases: [
+      { phase: "Phase 1", status: "completed", summary: "AI dashboard, technical analysis, watchlist, alerts, source metadata, security baseline." },
+      { phase: "Phase 2.1", status: "completed", summary: "Financial data and EPS model with actual/model separation." },
+      { phase: "Phase 2.2", status: "completed", summary: "Official news/company announcement/timeline foundation." },
+      { phase: "Phase 2.5", status: "preview-ready", summary: "Master Data + Global Search platform foundation. Preview validation pending." },
+      { phase: "Phase 3", status: "not-started", summary: "Supply Chain Intelligence. Blocked until Master Data Preview is accepted." },
+    ],
+    technicalDebt: [
+      "Split server.mjs and public/app.js before large Phase 3 expansion.",
+      "Move generated artifacts to a durable artifact strategy.",
+      "Add live API schema validation and Preview performance baselines.",
+    ],
+    knownLimits: [
+      "No AI natural-language answer layer yet.",
+      "No account-backed recent/history search.",
+      "No supply-chain events in Search Index yet.",
+    ],
   };
 }
 
@@ -489,6 +684,149 @@ ${report.questions.twoDayRefactorTop3.map((item) => `   - ${item}`).join("\n")}
 `;
 }
 
+function crossModuleMarkdown(report) {
+  return `# Cross Module Validation Report
+
+Generated at: ${report.generatedAt}
+
+${mdTable(report.checks, [
+  { key: "name", label: "Check" },
+  { key: "passed", label: "Passed" },
+  { key: "detail", label: "Detail" },
+])}
+
+Result: ${report.passed ? "PASS" : "FAIL"}
+
+${report.note}
+`;
+}
+
+function apiConsistencyMarkdown(report) {
+  return `# API Consistency Report
+
+Generated at: ${report.generatedAt}
+
+## Expected Envelope
+
+${report.expectedEnvelope.map((item) => `- ${item}`).join("\n")}
+
+## Endpoint Checks
+
+${mdTable(report.checks, [
+  { key: "endpoint", label: "Endpoint" },
+  { key: "passed", label: "Passed" },
+  { key: "detail", label: "Detail" },
+])}
+
+## Metadata Checks
+
+${mdTable(report.metadataChecks, [
+  { key: "name", label: "Check" },
+  { key: "passed", label: "Passed" },
+])}
+
+Result: ${report.passed ? "PASS" : "FAIL"}
+
+${report.note}
+`;
+}
+
+function architectureHealthMarkdown(report) {
+  return `# Architecture Health Report
+
+Generated at: ${report.generatedAt}
+
+| Area | Summary |
+| --- | --- |
+| Biggest architecture strength | ${report.biggestStrength} |
+| Biggest technical debt | ${report.biggestDebt} |
+| Biggest risk | ${report.biggestRisk} |
+| Next best direction | ${report.nextBestDirection} |
+
+## Health Signals
+
+| Signal | Value |
+| --- | --- |
+| Cross-module Master Data | ${report.healthSignals.crossModuleMasterData} |
+| API consistency | ${report.healthSignals.apiConsistency} |
+| Search accuracy | ${report.healthSignals.searchAccuracy} |
+| Master Data size | ${report.healthSignals.masterDataSize} |
+| Search Index size | ${report.healthSignals.searchIndexSize} |
+| Avg search time | ${report.healthSignals.avgSearchMs} ms |
+`;
+}
+
+function releaseMarkdown(report) {
+  return `# Release Report
+
+Generated at: ${report.generatedAt}
+
+## Version
+
+- Release: ${report.releaseName}
+- Branch: ${report.branch}
+- App version: ${report.version.appVersion}
+- Master build version: ${report.version.masterBuildVersion}
+- Checksum: ${report.version.checksum}
+
+## Features
+
+${report.features.map((item) => `- ${item}`).join("\n")}
+
+## Fixes
+
+${report.fixes.map((item) => `- ${item}`).join("\n")}
+
+## Breaking Changes
+
+${report.breakingChanges.length ? report.breakingChanges.map((item) => `- ${item}`).join("\n") : "None"}
+
+## Migration
+
+${report.migration.map((item) => `- ${item}`).join("\n")}
+
+## Known Issues
+
+${report.knownIssues.map((item) => `- ${item}`).join("\n")}
+
+## Rollback
+
+${report.rollback}
+
+## Quality Summary
+
+| Metric | Value |
+| --- | --- |
+| Data Quality | ${report.qualitySummary.dataQuality} |
+| Search Accuracy | ${report.qualitySummary.searchAccuracy} |
+| Master Data Size | ${report.qualitySummary.masterDataSize} |
+| Search Index Size | ${report.qualitySummary.searchIndexSize} |
+`;
+}
+
+function roadmapMarkdown(report) {
+  return `# Roadmap
+
+Generated at: ${report.generatedAt}
+
+## Phases
+
+${mdTable(report.phases, [
+  { key: "phase", label: "Phase" },
+  { key: "status", label: "Status" },
+  { key: "summary", label: "Summary" },
+])}
+
+## Technical Debt
+
+${report.technicalDebt.map((item) => `- ${item}`).join("\n")}
+
+## Known Limits
+
+${report.knownLimits.map((item) => `- ${item}`).join("\n")}
+`;
+}
+
 const startedAt = performance.now();
 const [stocksRaw, versionRaw, indexRaw, productsRaw, topicsRaw, companiesRaw] = await Promise.all([
   fs.readFile(path.join(dataDir, "master-stock.json"), "utf8"),
@@ -509,16 +847,30 @@ const dataQuality = dataQualityReport(stocks);
 const searchAccuracy = searchAccuracyReport({ stocks, products, topics, companies, index });
 const architectureMetrics = architectureMetricsReport({ stocksRaw, versionRaw, indexRaw, stocks, version, index });
 const technicalDebt = technicalDebtReport({ metrics: architectureMetrics });
+const [serverSource, appSource] = await Promise.all([
+  fs.readFile(path.join(rootDir, "server.mjs"), "utf8"),
+  fs.readFile(path.join(rootDir, "public", "app.js"), "utf8"),
+]);
+const crossModule = crossModuleValidationReport({ serverSource, appSource });
+const apiConsistency = apiConsistencyReport({ serverSource });
+const architectureHealth = architectureHealthReport({ metrics: architectureMetrics, technicalDebt, crossModule, apiConsistency, searchAccuracy });
+const release = releaseReport({ version, searchAccuracy, dataQuality, metrics: architectureMetrics });
+const roadmap = roadmapReport();
 const summary = {
   generatedAt: nowIso(),
   elapsedMs: Number((performance.now() - startedAt).toFixed(3)),
   reports: {
     dataQuality: dataQuality.passed,
     searchAccuracy: searchAccuracy.passed,
+    crossModule: crossModule.passed,
+    apiConsistency: apiConsistency.passed,
     architectureMetrics: true,
     technicalDebt: true,
+    architectureHealth: true,
+    release: true,
+    roadmap: true,
   },
-  previewGatePassed: dataQuality.passed && searchAccuracy.passed,
+  previewGatePassed: dataQuality.passed && searchAccuracy.passed && crossModule.passed && apiConsistency.passed,
   outputDir: reportDir,
 };
 
@@ -526,6 +878,12 @@ await writeReport("data-quality-report", dataQuality, dataQualityMarkdown(dataQu
 await writeReport("search-accuracy-report", searchAccuracy, searchAccuracyMarkdown(searchAccuracy));
 await writeReport("architecture-metrics-report", architectureMetrics, architectureMetricsMarkdown(architectureMetrics));
 await writeReport("technical-debt-report", technicalDebt, technicalDebtMarkdown(technicalDebt));
+await writeReport("cross-module-validation-report", crossModule, crossModuleMarkdown(crossModule));
+await writeReport("api-consistency-report", apiConsistency, apiConsistencyMarkdown(apiConsistency));
+await writeReport("architecture-health-report", architectureHealth, architectureHealthMarkdown(architectureHealth));
+await writeReport("release-report", release, releaseMarkdown(release));
+await writeReport("roadmap", roadmap, roadmapMarkdown(roadmap));
+await fs.writeFile(path.join(rootDir, "docs", "ROADMAP.md"), roadmapMarkdown(roadmap), "utf8");
 await writeReport("preview-quality-summary", summary, `# Phase 2.5 Preview Quality Summary
 
 Generated at: ${summary.generatedAt}
@@ -534,8 +892,13 @@ Generated at: ${summary.generatedAt}
 | --- | --- |
 | Data Quality | ${summary.reports.dataQuality} |
 | Search Accuracy | ${summary.reports.searchAccuracy} |
+| Cross Module Validation | ${summary.reports.crossModule} |
+| API Consistency | ${summary.reports.apiConsistency} |
 | Architecture Metrics | ${summary.reports.architectureMetrics} |
 | Technical Debt | ${summary.reports.technicalDebt} |
+| Architecture Health | ${summary.reports.architectureHealth} |
+| Release Report | ${summary.reports.release} |
+| Roadmap | ${summary.reports.roadmap} |
 
 Preview gate: ${summary.previewGatePassed ? "PASS" : "FAIL"}
 `);

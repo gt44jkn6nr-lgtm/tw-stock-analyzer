@@ -29,7 +29,7 @@
           <form id="queryForm" class="query">
             <label>
               股票搜尋
-              <input id="stockNo" value="2330" inputmode="numeric" autocomplete="off" />
+              <input id="stockNo" value="2330" inputmode="numeric" autocomplete="off" aria-label="股票代號" />
             </label>
             <label>
               區間
@@ -53,12 +53,24 @@
           <div class="global-search-box">
             <label for="globalSearch">Global Search</label>
             <div class="global-search-input-wrap">
-              <input id="globalSearch" type="search" autocomplete="off" placeholder="2330、台積電、TSMC、MOSFET、GB300、AI Server" />
-              <button type="button" id="globalSearchButton">搜尋</button>
+              <input
+                id="globalSearch"
+                type="search"
+                autocomplete="off"
+                placeholder="2330、台積電、TSMC、MOSFET、GB300、AI Server"
+                role="combobox"
+                aria-label="全站搜尋股票、ETF、產品、題材與產業"
+                aria-autocomplete="list"
+                aria-expanded="false"
+                aria-controls="globalSearchSuggestions"
+                aria-describedby="globalSearchHelp"
+              />
+              <button type="button" id="globalSearchButton" aria-label="執行全站搜尋">搜尋</button>
             </div>
-            <div id="globalSearchSuggestions" class="search-suggestions" hidden></div>
+            <small id="globalSearchHelp">可輸入股票代號、公司名稱、英文簡稱、ETF、產品或題材；支援鍵盤上下鍵與 Escape。</small>
+            <div id="globalSearchSuggestions" class="search-suggestions" role="listbox" aria-label="搜尋建議" hidden></div>
           </div>
-          <div id="globalSearchResults" class="search-results" hidden></div>
+          <div id="globalSearchResults" class="search-results" aria-live="polite" hidden></div>
         </section>
 
         <section id="dashboard" class="section dashboard-section">

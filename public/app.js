@@ -31,6 +31,7 @@ let chartZoom = 1;
 let drawingStore = loadDrawingStore();
 let masterLookup = new Map();
 let searchDebounce = null;
+let activeSearchSuggestion = -1;
 const drawingStrokes = [];
 
 const builtInWatchlist = [
@@ -181,8 +182,18 @@ function renderSuggestionItems(items) {
   return items
     .slice(0, 10)
     .map(
-      (item) => `
-        <button type="button" class="search-suggestion" data-search-id="${escapeHtml(item.id)}" data-search-stock="${escapeHtml(item.stockNo || "")}">
+      (item, index) => `
+        <button
+          type="button"
+          id="search-suggestion-${index}"
+          class="search-suggestion"
+          role="option"
+          aria-selected="false"
+          tabindex="-1"
+          data-search-index="${index}"
+          data-search-id="${escapeHtml(item.id)}"
+          data-search-stock="${escapeHtml(item.stockNo || "")}"
+        >
           <span>
             <strong>${escapeHtml(item.stockNo ? `${item.stockNo} ${item.name}` : item.name)}</strong>
             <small>${escapeHtml(searchItemSubtitle(item))}</small>
@@ -194,18 +205,62 @@ function renderSuggestionItems(items) {
     .join("");
 }
 
+function setSearchExpanded(expanded) {
+  const input = document.getElementById("globalSearch");
+  if (input) input.setAttribute("aria-expanded", expanded ? "true" : "false");
+}
+
+function closeSearchSuggestions() {
+  const box = document.getElementById("globalSearchSuggestions");
+  if (box) {
+    box.hidden = true;
+    box.innerHTML = "";
+  }
+  activeSearchSuggestion = -1;
+  setSearchExpanded(false);
+}
+
+function setActiveSearchSuggestion(index) {
+  const box = document.getElementById("globalSearchSuggestions");
+  const options = [...(box?.querySelectorAll("[data-search-id]") || [])];
+  if (!options.length) {
+    activeSearchSuggestion = -1;
+    return;
+  }
+  activeSearchSuggestion = (index + options.length) % options.length;
+  options.forEach((option, optionIndex) => {
+    const active = optionIndex === activeSearchSuggestion;
+    option.setAttribute("aria-selected", active ? "true" : "false");
+    option.classList.toggle("active", active);
+  });
+  document.getElementById("globalSearch")?.setAttribute("aria-activedescendant", options[activeSearchSuggestion].id || "");
+}
+
+function activateSearchElement(element) {
+  const stockNo = element?.dataset?.searchStock;
+  closeSearchSuggestions();
+  if (stockNo) {
+    document.getElementById("stockNo").value = stockNo;
+    location.hash = "#analysis";
+    loadStock().catch((error) => {
+      document.getElementById("status").textContent = error.message;
+    });
+  }
+}
+
 async function loadSearchSuggestions(query) {
   const box = document.getElementById("globalSearchSuggestions");
   if (!box) return;
   if (!String(query || "").trim()) {
-    box.hidden = true;
-    box.innerHTML = "";
+    closeSearchSuggestions();
     return;
   }
   const data = await fetchApi("/api/search/suggestions", { q: query });
   const items = data.results || data.suggestions || [];
   box.innerHTML = items.length ? renderSuggestionItems(items) : `<div class="search-suggestion"><span><strong>查無結果</strong><small>沒有符合的股票、ETF、產品或題材</small></span></div>`;
   box.hidden = false;
+  activeSearchSuggestion = -1;
+  setSearchExpanded(true);
 }
 
 function renderSearchResults(data) {
@@ -1510,15 +1565,7 @@ document.getElementById("industryTabs")?.addEventListener("click", (event) => {
 document.body.addEventListener("click", (event) => {
   const searchPick = event.target.closest("[data-search-id]");
   if (searchPick) {
-    const stockNo = searchPick.dataset.searchStock;
-    document.getElementById("globalSearchSuggestions")?.setAttribute("hidden", "");
-    if (stockNo) {
-      document.getElementById("stockNo").value = stockNo;
-      location.hash = "#analysis";
-      loadStock().catch((error) => {
-        document.getElementById("status").textContent = error.message;
-      });
-    }
+    activateSearchElement(searchPick);
     return;
   }
   const removeWatch = event.target.closest("[data-remove]");
@@ -1555,20 +1602,40 @@ document.getElementById("globalSearch")?.addEventListener("input", (event) => {
 });
 
 document.getElementById("globalSearch")?.addEventListener("keydown", (event) => {
+  const options = [...(document.getElementById("globalSearchSuggestions")?.querySelectorAll("[data-search-id]") || [])];
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeSearchSuggestions();
+    return;
+  }
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    setActiveSearchSuggestion(activeSearchSuggestion + 1);
+    return;
+  }
+  if (event.key === "ArrowUp") {
+    event.preventDefault();
+    setActiveSearchSuggestion(activeSearchSuggestion - 1);
+    return;
+  }
   if (event.key !== "Enter") return;
   event.preventDefault();
-  document.getElementById("globalSearchSuggestions")?.setAttribute("hidden", "");
+  if (activeSearchSuggestion >= 0 && options[activeSearchSuggestion]) {
+    activateSearchElement(options[activeSearchSuggestion]);
+    return;
+  }
+  closeSearchSuggestions();
   runGlobalSearch().catch(() => {});
 });
 
 document.getElementById("globalSearchButton")?.addEventListener("click", () => {
-  document.getElementById("globalSearchSuggestions")?.setAttribute("hidden", "");
+  closeSearchSuggestions();
   runGlobalSearch().catch(() => {});
 });
 
 document.addEventListener("click", (event) => {
   if (event.target.closest(".global-search-box")) return;
-  document.getElementById("globalSearchSuggestions")?.setAttribute("hidden", "");
+  closeSearchSuggestions();
 });
 
 document.getElementById("industryQuotes")?.addEventListener("click", (event) => {

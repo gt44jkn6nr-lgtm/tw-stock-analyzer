@@ -1,39 +1,39 @@
 {
-  "generatedAt": "2026-07-13T15:51:37.830Z",
+  "generatedAt": "2026-07-13T16:03:49.622Z",
   "masterDataSizeBytes": 2028938,
   "masterDataSize": "1.93 MB",
-  "searchIndexSizeBytes": 8049910,
+  "searchIndexSizeBytes": 8049986,
   "searchIndexSize": "7.68 MB",
-  "buildTimeMs": 1127,
-  "loadTimeMs": 115.461,
+  "buildTimeMs": 1397,
+  "loadTimeMs": 97.4,
   "searchTime": {
     "rounds": 1000,
-    "totalMs": 448.391,
-    "avgMs": 0.4484,
+    "totalMs": 480.86,
+    "avgMs": 0.4809,
     "hits": 12323
   },
   "apiTime": {
-    "simulatedMasterSearchMs": 0.0799,
+    "simulatedMasterSearchMs": 0.1878,
     "payloadBytes": 2647,
     "note": "Preview should replace this with live endpoint timing against Render."
   },
   "memoryUsage": {
     "before": {
-      "rss": 173047808,
-      "heapTotal": 127070208,
-      "heapUsed": 76119976,
+      "rss": 185806848,
+      "heapTotal": 127332352,
+      "heapUsed": 89440664,
       "external": 2697838,
       "arrayBuffers": 1059389
     },
     "after": {
-      "rss": 192098304,
+      "rss": 191860736,
       "heapTotal": 130334720,
-      "heapUsed": 74948080,
+      "heapUsed": 66538832,
       "external": 2697878,
       "arrayBuffers": 1059389
     },
-    "rssDeltaBytes": 19050496,
-    "heapUsedDeltaBytes": -1171896
+    "rssDeltaBytes": 6053888,
+    "heapUsedDeltaBytes": -22901832
   },
   "cache": {
     "expectedStrategy": "Master Data and Search Index are loaded into process memory and reused per request.",
