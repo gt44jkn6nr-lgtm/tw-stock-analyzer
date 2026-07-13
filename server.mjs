@@ -445,14 +445,18 @@ function scoreSearchDoc(doc, q, matchType) {
   const exactStockNo = doc.stockNo && normalizeSearchText(doc.stockNo) === q;
   const exactName = doc.name && normalizeSearchText(doc.name) === q;
   const exactAlias = (doc.aliases || []).some((item) => normalizeSearchText(item.alias || item) === q);
+  const trustedManualAlias = (doc.aliases || []).some(
+    (item) => normalizeSearchText(item.alias || item) === q && item.source === "manual_alias" && Number(item.confidence || 0) >= 0.95,
+  );
   const exactEnglish = doc.englishName && normalizeSearchText(doc.englishName) === q;
   if (exactStockNo) score += 1000;
+  else if (trustedManualAlias) score += 940;
   else if (exactName) score += 920;
   else if (exactAlias) score += 860;
   else if (exactEnglish) score += 780;
   else if (type === "etf") score += 700;
+  else if (type === "product") score += 640;
   else if (type === "topic") score += 620;
-  else if (type === "product") score += 600;
   else if (type === "industry") score += 540;
   else if (matchType === "prefix") score += 430;
   else if (matchType === "fuzzy") score += 250;

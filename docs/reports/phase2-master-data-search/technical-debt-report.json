@@ -1,0 +1,60 @@
+{
+  "generatedAt": "2026-07-13T15:51:37.857Z",
+  "items": [
+    {
+      "id": "TD-001",
+      "severity": "high",
+      "title": "server.mjs is becoming a platform bottleneck",
+      "reason": "Routing, data fetching, scoring, financial modeling, timeline, search, and static serving are concentrated in one file.",
+      "impact": "Feature velocity will drop and regression risk will rise as Supply Chain Intelligence and AI Search are added.",
+      "recommendation": "Split into modules: routes, services, repositories, search, master-data, timeline, financial, and shared source metadata.",
+      "priority": 1
+    },
+    {
+      "id": "TD-002",
+      "severity": "high",
+      "title": "Generated Master/Search JSON is committed as large artifacts",
+      "reason": "Current search index is 7.68 MB; future announcements/news/supply-chain events will expand it quickly.",
+      "impact": "Repository size, code review noise, deployment slug size, and merge conflicts will worsen.",
+      "recommendation": "Move generated artifacts to build cache or object storage, keep source seeds and deterministic builder in git.",
+      "priority": 2
+    },
+    {
+      "id": "TD-003",
+      "severity": "medium",
+      "title": "Search ranking is deterministic but not yet relevance-trained",
+      "reason": "Weights are rule-based and do not yet use click feedback, user intent, or domain-specific synonym expansion.",
+      "impact": "Long-tail searches may be correct but not ideal as topics, products, and news grow.",
+      "recommendation": "Introduce query evaluation sets, click telemetry, and a versioned ranking profile before AI Search.",
+      "priority": 3
+    },
+    {
+      "id": "TD-004",
+      "severity": "medium",
+      "title": "Master Data update is manual",
+      "reason": "The builder supports incremental scope, but no scheduled job or stale alert exists yet.",
+      "impact": "Listings, ETF changes, renamed companies, or delistings can become stale without operational discipline.",
+      "recommendation": "Add scheduled refresh, diff report, source failure alerting, and approval gate for changed identifiers.",
+      "priority": 4
+    },
+    {
+      "id": "TD-005",
+      "severity": "medium",
+      "title": "Frontend is still a large imperative app file",
+      "reason": "Global Search was added into existing app.js, which already owns charts, timeline, financial UI, alerts, and watchlist.",
+      "impact": "UI behavior will become hard to test and accessibility improvements will be slower.",
+      "recommendation": "Modularize frontend by feature and introduce a small state/store layer before Portfolio and AI Chat.",
+      "priority": 5
+    }
+  ],
+  "questions": {
+    "biggestDebt": "server.mjs and public/app.js are now too broad for a long-lived AI research platform.",
+    "nextBestStep": "Stabilize Master Data in Preview, then extract Master/Search services before Phase 3 expands relation data.",
+    "twoDayRefactorTop3": [
+      "Extract server modules and route handlers.",
+      "Move generated search artifacts out of normal code review flow or add generated-file review policy.",
+      "Create shared source metadata and error contracts used by all APIs."
+    ],
+    "betterProductDesign": "Make Global Search the command center: query results should route into stocks, topics, products, events, and eventually AI answers, not only a topbar utility."
+  }
+}

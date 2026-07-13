@@ -1,0 +1,547 @@
+{
+  "generatedAt": "2026-07-13T15:51:37.266Z",
+  "caseCount": 120,
+  "passedCount": 120,
+  "failedCount": 0,
+  "accuracy": 1,
+  "elapsedMs": 62.205,
+  "avgSearchMs": 0.5184,
+  "criticalCases": [
+    {
+      "query": "TSMC",
+      "expectedId": "TWSE-2330",
+      "rule": "rank1",
+      "rank": 1,
+      "passed": true,
+      "topResults": [
+        {
+          "id": "TWSE-2330",
+          "name": "台積電",
+          "type": "stock",
+          "stockNo": "2330",
+          "score": 1055
+        },
+        {
+          "id": "TWSE-6278",
+          "name": "台表科",
+          "type": "stock",
+          "stockNo": "6278",
+          "score": 328.2
+        },
+        {
+          "id": "TWSE-6770",
+          "name": "力積電",
+          "type": "stock",
+          "stockNo": "6770",
+          "score": 328.2
+        },
+        {
+          "id": "TPEx-2073",
+          "name": "雄順",
+          "type": "stock",
+          "stockNo": "2073",
+          "score": 316.7
+        }
+      ]
+    },
+    {
+      "query": "台積電",
+      "expectedId": "TWSE-2330",
+      "rule": "rank1",
+      "rank": 1,
+      "passed": true,
+      "topResults": [
+        {
+          "id": "TWSE-2330",
+          "name": "台積電",
+          "type": "stock",
+          "stockNo": "2330",
+          "score": 1055
+        }
+      ]
+    },
+    {
+      "query": "2330",
+      "expectedId": "TWSE-2330",
+      "rule": "rank1",
+      "rank": 1,
+      "passed": true,
+      "topResults": [
+        {
+          "id": "TWSE-2330",
+          "name": "台積電",
+          "type": "stock",
+          "stockNo": "2330",
+          "score": 1115
+        },
+        {
+          "id": "TWSE-2303",
+          "name": "聯電",
+          "type": "stock",
+          "stockNo": "2303",
+          "score": 365
+        },
+        {
+          "id": "TWSE-2308",
+          "name": "台達電",
+          "type": "stock",
+          "stockNo": "2308",
+          "score": 365
+        },
+        {
+          "id": "TWSE-1233",
+          "name": "天仁",
+          "type": "stock",
+          "stockNo": "1233",
+          "score": 328.2
+        },
+        {
+          "id": "TWSE-2233",
+          "name": "宇隆",
+          "type": "stock",
+          "stockNo": "2233",
+          "score": 328.2
+        }
+      ]
+    },
+    {
+      "query": "聯發",
+      "expectedId": "TWSE-2454",
+      "rule": "rank1",
+      "rank": 1,
+      "passed": true,
+      "topResults": [
+        {
+          "id": "TWSE-2454",
+          "name": "聯發科",
+          "type": "stock",
+          "stockNo": "2454",
+          "score": 1055
+        },
+        {
+          "id": "TWSE-1459",
+          "name": "聯發",
+          "type": "stock",
+          "stockNo": "1459",
+          "score": 998.2
+        },
+        {
+          "id": "TPEx-2756",
+          "name": "聯發國際",
+          "type": "stock",
+          "stockNo": "2756",
+          "score": 496.7
+        }
+      ]
+    },
+    {
+      "query": "MTK",
+      "expectedId": "TWSE-2454",
+      "rule": "rank1",
+      "rank": 1,
+      "passed": true,
+      "topResults": [
+        {
+          "id": "TWSE-2454",
+          "name": "聯發科",
+          "type": "stock",
+          "stockNo": "2454",
+          "score": 1055
+        }
+      ]
+    },
+    {
+      "query": "MOS",
+      "expectedId": "product-mosfet",
+      "rule": "rank1",
+      "rank": 1,
+      "passed": true,
+      "topResults": [
+        {
+          "id": "product-mosfet",
+          "name": "MOSFET",
+          "type": "product",
+          "stockNo": null,
+          "score": 741.2
+        },
+        {
+          "id": "topic-mosfet",
+          "name": "MOSFET",
+          "type": "topic",
+          "stockNo": null,
+          "score": 721.2
+        },
+        {
+          "id": "TWSE-2434",
+          "name": "統懋",
+          "type": "stock",
+          "stockNo": "2434",
+          "score": 508.2
+        },
+        {
+          "id": "TWSE-4564",
+          "name": "元翎",
+          "type": "stock",
+          "stockNo": "4564",
+          "score": 508.2
+        },
+        {
+          "id": "TWSE-2466",
+          "name": "冠西電",
+          "type": "stock",
+          "stockNo": "2466",
+          "score": 328.2
+        }
+      ]
+    },
+    {
+      "query": "MOSFET",
+      "expectedId": "product-mosfet",
+      "rule": "top3",
+      "rank": 1,
+      "passed": true,
+      "topResults": [
+        {
+          "id": "product-mosfet",
+          "name": "MOSFET",
+          "type": "product",
+          "stockNo": null,
+          "score": 1021.2
+        },
+        {
+          "id": "topic-mosfet",
+          "name": "MOSFET",
+          "type": "topic",
+          "stockNo": null,
+          "score": 1021.2
+        },
+        {
+          "id": "TWSE-2434",
+          "name": "統懋",
+          "type": "stock",
+          "stockNo": "2434",
+          "score": 328.2
+        },
+        {
+          "id": "TWSE-2466",
+          "name": "冠西電",
+          "type": "stock",
+          "stockNo": "2466",
+          "score": 328.2
+        },
+        {
+          "id": "TWSE-4564",
+          "name": "元翎",
+          "type": "stock",
+          "stockNo": "4564",
+          "score": 328.2
+        }
+      ]
+    },
+    {
+      "query": "台",
+      "expectedId": "TWSE-2330",
+      "rule": "top10",
+      "rank": 8,
+      "passed": true,
+      "topResults": [
+        {
+          "id": "TWSE-00703",
+          "name": "台新MSCI中國",
+          "type": "etf",
+          "stockNo": "00703",
+          "score": 763.25
+        },
+        {
+          "id": "TWSE-00851",
+          "name": "台新全球AI",
+          "type": "etf",
+          "stockNo": "00851",
+          "score": 763.25
+        },
+        {
+          "id": "TWSE-00936",
+          "name": "台新永續高息中小",
+          "type": "etf",
+          "stockNo": "00936",
+          "score": 763.25
+        },
+        {
+          "id": "TWSE-00947",
+          "name": "台新臺灣IC設計",
+          "type": "etf",
+          "stockNo": "00947",
+          "score": 763.25
+        },
+        {
+          "id": "TWSE-00951",
+          "name": "台新日本半導體",
+          "type": "etf",
+          "stockNo": "00951",
+          "score": 763.25
+        }
+      ]
+    },
+    {
+      "query": "5425",
+      "expectedId": "TPEx-5425",
+      "rule": "rank1",
+      "rank": 1,
+      "passed": true,
+      "topResults": [
+        {
+          "id": "TPEx-5425",
+          "name": "台半",
+          "type": "stock",
+          "stockNo": "5425",
+          "score": 1066.7
+        },
+        {
+          "id": "TWSE-2254",
+          "name": "巨鎧精密-創",
+          "type": "stock",
+          "stockNo": "2254",
+          "score": 328.2
+        },
+        {
+          "id": "TWSE-2425",
+          "name": "承啟",
+          "type": "stock",
+          "stockNo": "2425",
+          "score": 328.2
+        },
+        {
+          "id": "TWSE-2540",
+          "name": "愛山林",
+          "type": "stock",
+          "stockNo": "2540",
+          "score": 328.2
+        },
+        {
+          "id": "TWSE-2542",
+          "name": "興富發",
+          "type": "stock",
+          "stockNo": "2542",
+          "score": 328.2
+        }
+      ]
+    },
+    {
+      "query": "台半",
+      "expectedId": "TPEx-5425",
+      "rule": "rank1",
+      "rank": 1,
+      "passed": true,
+      "topResults": [
+        {
+          "id": "TPEx-5425",
+          "name": "台半",
+          "type": "stock",
+          "stockNo": "5425",
+          "score": 1006.7
+        }
+      ]
+    },
+    {
+      "query": "8105",
+      "expectedId": "TWSE-8105",
+      "rule": "rank1",
+      "rank": 1,
+      "passed": true,
+      "topResults": [
+        {
+          "id": "TWSE-8105",
+          "name": "凌巨",
+          "type": "stock",
+          "stockNo": "8105",
+          "score": 1078.2
+        },
+        {
+          "id": "TWSE-0051",
+          "name": "元大中型100",
+          "type": "etf",
+          "stockNo": "0051",
+          "score": 763.25
+        },
+        {
+          "id": "TWSE-1810",
+          "name": "和成",
+          "type": "stock",
+          "stockNo": "1810",
+          "score": 328.2
+        },
+        {
+          "id": "TWSE-2105",
+          "name": "正新",
+          "type": "stock",
+          "stockNo": "2105",
+          "score": 328.2
+        },
+        {
+          "id": "TWSE-8101",
+          "name": "華冠",
+          "type": "stock",
+          "stockNo": "8101",
+          "score": 328.2
+        }
+      ]
+    },
+    {
+      "query": "GB300",
+      "expectedId": "topic-gb300",
+      "rule": "top3",
+      "rank": 2,
+      "passed": true,
+      "topResults": [
+        {
+          "id": "product-gb300",
+          "name": "GB300",
+          "type": "product",
+          "stockNo": null,
+          "score": 1025.8
+        },
+        {
+          "id": "topic-gb300",
+          "name": "GB300",
+          "type": "topic",
+          "stockNo": null,
+          "score": 1025.8
+        },
+        {
+          "id": "TWSE-00637L",
+          "name": "元大滬深300正2",
+          "type": "etf",
+          "stockNo": "00637L",
+          "score": 763.25
+        },
+        {
+          "id": "TWSE-00638R",
+          "name": "元大滬深300反1",
+          "type": "etf",
+          "stockNo": "00638R",
+          "score": 763.25
+        },
+        {
+          "id": "TWSE-00690",
+          "name": "兆豐藍籌30",
+          "type": "etf",
+          "stockNo": "00690",
+          "score": 763.25
+        }
+      ]
+    },
+    {
+      "query": "DDR5",
+      "expectedId": "product-ddr5",
+      "rule": "top3",
+      "rank": 1,
+      "passed": true,
+      "topResults": [
+        {
+          "id": "product-ddr5",
+          "name": "DDR5",
+          "type": "product",
+          "stockNo": null,
+          "score": 1018.9
+        },
+        {
+          "id": "topic-memory",
+          "name": "記憶體",
+          "type": "topic",
+          "stockNo": null,
+          "score": 963.5
+        }
+      ]
+    },
+    {
+      "query": "TrendForce",
+      "expectedId": "INFO-TRENDFORCE",
+      "rule": "rank1",
+      "rank": 1,
+      "passed": true,
+      "topResults": [
+        {
+          "id": "INFO-TRENDFORCE",
+          "name": "TrendForce",
+          "type": "company",
+          "stockNo": null,
+          "score": 1006.25
+        },
+        {
+          "id": "product-hbm",
+          "name": "HBM",
+          "type": "product",
+          "stockNo": null,
+          "score": 744.65
+        },
+        {
+          "id": "TWSE-1108",
+          "name": "幸福",
+          "type": "stock",
+          "stockNo": "1108",
+          "score": 328.2
+        },
+        {
+          "id": "TWSE-1110",
+          "name": "東泥",
+          "type": "stock",
+          "stockNo": "1110",
+          "score": 328.2
+        },
+        {
+          "id": "TWSE-1216",
+          "name": "統一",
+          "type": "stock",
+          "stockNo": "1216",
+          "score": 328.2
+        }
+      ]
+    },
+    {
+      "query": "AI Server",
+      "expectedId": "topic-ai-server",
+      "rule": "rank1",
+      "rank": 1,
+      "passed": true,
+      "topResults": [
+        {
+          "id": "topic-ai-server",
+          "name": "AI Server",
+          "type": "topic",
+          "stockNo": null,
+          "score": 1029.25
+        },
+        {
+          "id": "product-gb300",
+          "name": "GB300",
+          "type": "product",
+          "stockNo": null,
+          "score": 745.8
+        },
+        {
+          "id": "TWSE-1218",
+          "name": "泰山",
+          "type": "stock",
+          "stockNo": "1218",
+          "score": 328.2
+        },
+        {
+          "id": "TWSE-1445",
+          "name": "大宇",
+          "type": "stock",
+          "stockNo": "1445",
+          "score": 328.2
+        },
+        {
+          "id": "TWSE-1460",
+          "name": "宏遠",
+          "type": "stock",
+          "stockNo": "1460",
+          "score": 328.2
+        }
+      ]
+    }
+  ],
+  "failed": [],
+  "passed": true
+}

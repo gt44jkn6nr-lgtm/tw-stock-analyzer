@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.mjs",
     "build:master-data": "node scripts/build-master-data.mjs",
+    "audit:master-search": "node scripts/audit-master-search.mjs",
     "test:acceptance": "node tests/phase1-acceptance.mjs",
     "test:financial": "node tests/phase2-financial.mjs",
     "test:timeline": "node tests/phase2-news-timeline.mjs",

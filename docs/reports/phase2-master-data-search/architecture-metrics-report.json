@@ -1,0 +1,43 @@
+{
+  "generatedAt": "2026-07-13T15:51:37.830Z",
+  "masterDataSizeBytes": 2028938,
+  "masterDataSize": "1.93 MB",
+  "searchIndexSizeBytes": 8049910,
+  "searchIndexSize": "7.68 MB",
+  "buildTimeMs": 1127,
+  "loadTimeMs": 115.461,
+  "searchTime": {
+    "rounds": 1000,
+    "totalMs": 448.391,
+    "avgMs": 0.4484,
+    "hits": 12323
+  },
+  "apiTime": {
+    "simulatedMasterSearchMs": 0.0799,
+    "payloadBytes": 2647,
+    "note": "Preview should replace this with live endpoint timing against Render."
+  },
+  "memoryUsage": {
+    "before": {
+      "rss": 173047808,
+      "heapTotal": 127070208,
+      "heapUsed": 76119976,
+      "external": 2697838,
+      "arrayBuffers": 1059389
+    },
+    "after": {
+      "rss": 192098304,
+      "heapTotal": 130334720,
+      "heapUsed": 74948080,
+      "external": 2697878,
+      "arrayBuffers": 1059389
+    },
+    "rssDeltaBytes": 19050496,
+    "heapUsedDeltaBytes": -1171896
+  },
+  "cache": {
+    "expectedStrategy": "Master Data and Search Index are loaded into process memory and reused per request.",
+    "expectedHitRateAfterWarmup": 1,
+    "previewValidationRequired": true
+  }
+}

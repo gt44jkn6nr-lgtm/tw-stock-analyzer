@@ -1,0 +1,12 @@
+{
+  "generatedAt": "2026-07-13T15:51:37.857Z",
+  "elapsedMs": 844.225,
+  "reports": {
+    "dataQuality": true,
+    "searchAccuracy": true,
+    "architectureMetrics": true,
+    "technicalDebt": true
+  },
+  "previewGatePassed": true,
+  "outputDir": "C:\\Users\\newli\\Documents\\Codex\\2026-07-01\\new-chat\\tw-stock-analyzer\\docs\\reports\\phase2-master-data-search"
+}

@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "buildVersion": "phase2-master-data-search-1",
-  "generatedAt": "2026-07-13T15:16:02.872Z",
+  "generatedAt": "2026-07-13T15:51:29.382Z",
   "recordCount": {
     "total": 2181,
     "twse": 1083,
@@ -19,24 +19,24 @@
       "url": "https://openapi.twse.com.tw/v1/opendata/t187ap03_L",
       "ok": true,
       "recordCount": 1089,
-      "fetchedAt": "2026-07-13T15:16:02.558Z",
-      "durationMs": 599
+      "fetchedAt": "2026-07-13T15:51:29.123Z",
+      "durationMs": 818
     },
     {
       "name": "tpex-listed",
       "url": "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap03_O",
       "ok": true,
       "recordCount": 891,
-      "fetchedAt": "2026-07-13T15:16:02.763Z",
-      "durationMs": 707
+      "fetchedAt": "2026-07-13T15:51:29.220Z",
+      "durationMs": 788
     },
     {
       "name": "twse-etf",
       "url": "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL",
       "ok": true,
       "recordCount": 1369,
-      "fetchedAt": "2026-07-13T15:16:02.531Z",
-      "durationMs": 474
+      "fetchedAt": "2026-07-13T15:51:28.925Z",
+      "durationMs": 491
     }
   ],
   "checksum": "0e18a040929e0c041e662bc7cba9fd10e290910a7c2eace69e8493579c971335",
@@ -45,5 +45,5 @@
     "scope": "all",
     "note": "First version supports stock-only or etf-only refresh by reusing the unchanged section from the previous master file."
   },
-  "buildTimeMs": 917
+  "buildTimeMs": 1127
 }

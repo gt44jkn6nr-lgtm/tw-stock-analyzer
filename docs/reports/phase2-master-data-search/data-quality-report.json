@@ -1,0 +1,76 @@
+{
+  "generatedAt": "2026-07-13T15:51:37.198Z",
+  "scope": {
+    "twseSample": 50,
+    "tpexSample": 50,
+    "etfSample": 207
+  },
+  "counts": {
+    "twse": 1083,
+    "tpex": 891,
+    "etf": 207,
+    "sampled": 307
+  },
+  "checks": [
+    {
+      "name": "50 TWSE sample available",
+      "passed": true,
+      "detail": "1083 TWSE records"
+    },
+    {
+      "name": "50 TPEx sample available",
+      "passed": true,
+      "detail": "891 TPEx records"
+    },
+    {
+      "name": "all ETF sampled",
+      "passed": true,
+      "detail": "207 ETF records"
+    },
+    {
+      "name": "non-ETF stockNo unique",
+      "passed": true,
+      "detail": "0 duplicates"
+    },
+    {
+      "name": "companyId unique",
+      "passed": true,
+      "detail": "0 duplicates"
+    },
+    {
+      "name": "alias unique within sampled records",
+      "passed": true,
+      "detail": "0 sampled records with duplicate aliases"
+    },
+    {
+      "name": "same company not duplicated",
+      "passed": true,
+      "detail": "0 duplicate company names"
+    },
+    {
+      "name": "market classification correct in sample",
+      "passed": true,
+      "detail": "0 issues"
+    },
+    {
+      "name": "ETF not identified as common stock",
+      "passed": true,
+      "detail": "0 issues"
+    },
+    {
+      "name": "required fields present",
+      "passed": true,
+      "detail": "0 sampled issues"
+    }
+  ],
+  "issues": {
+    "duplicateStockNo": [],
+    "duplicateCompanyId": [],
+    "duplicateCompanyName": [],
+    "aliasIssues": [],
+    "marketIssues": [],
+    "etfIssues": [],
+    "requiredFieldIssues": []
+  },
+  "passed": true
+}
