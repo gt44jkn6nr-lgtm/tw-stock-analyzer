@@ -137,10 +137,19 @@ button {
 }
 
 .industry-tabs {
+  margin-bottom: 12px;
+}
+
+.industry-row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 12px;
+}
+
+.industry-row + .industry-row {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
 }
 
 .tab-button {
@@ -149,6 +158,13 @@ button {
   border-color: var(--line);
   background: #fff;
   color: var(--ink);
+}
+
+.tab-button.sub {
+  height: 30px;
+  border-color: #cfd7e3;
+  background: #f8fafc;
+  font-size: 12px;
 }
 
 .tab-button.active {

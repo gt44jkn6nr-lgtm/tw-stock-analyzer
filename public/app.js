@@ -9,8 +9,11 @@ const fmt = new Intl.NumberFormat("zh-TW", { maximumFractionDigits: 2 });
 const pct = new Intl.NumberFormat("zh-TW", { style: "percent", maximumFractionDigits: 2 });
 const watchStorageKey = "tw-stock-watchlist-v1";
 const notifyStorageKey = "tw-stock-entry-notify-v1";
+const drawingStorageKey = "tw-stock-drawings-v1";
 const allIndustry = "全部";
 let selectedIndustry = allIndustry;
+let selectedMajorIndustry = allIndustry;
+let selectedSubIndustry = allIndustry;
 let currentLoadedStock = "";
 let drawEnabled = false;
 let activeStroke = null;
@@ -19,6 +22,7 @@ let lastEntryNotifyKey = "";
 let latestChartData = null;
 let chartZoom = 1;
 const drawingStrokes = [];
+let drawingStore = loadDrawingStore();
 
 const defaultWatchlist = [
   { stockNo: "2330", name: "台積電", industry: "台積電供應鏈 / 晶圓代工" },
@@ -296,8 +300,31 @@ function saveWatchlist() {
   localStorage.setItem(watchStorageKey, JSON.stringify(watchlist));
 }
 
-function industries() {
-  return [allIndustry, ...new Set(watchlist.map((item) => item.industry || "其他"))];
+function industryParts(industry) {
+  const [major, ...rest] = String(industry || "其他").split("/").map((part) => part.trim()).filter(Boolean);
+  return {
+    major: major || "其他",
+    sub: rest.join(" / ") || allIndustry,
+  };
+}
+
+function majorIndustries() {
+  return [allIndustry, ...new Set(watchlist.map((item) => industryParts(item.industry).major))];
+}
+
+function subIndustries(major) {
+  if (major === allIndustry) return [allIndustry];
+  const subs = watchlist
+    .filter((item) => industryParts(item.industry).major === major)
+    .map((item) => industryParts(item.industry).sub);
+  return [allIndustry, ...new Set(subs)];
+}
+
+function itemMatchesSelectedIndustry(item) {
+  if (selectedMajorIndustry === allIndustry) return true;
+  const parts = industryParts(item.industry);
+  if (parts.major !== selectedMajorIndustry) return false;
+  return selectedSubIndustry === allIndustry || parts.sub === selectedSubIndustry;
 }
 
 function escapeHtml(value) {
@@ -313,12 +340,32 @@ function renderWatchlist() {
   const currentStock = document.getElementById("stockNo").value.trim();
   if (!tabs || !list) return;
 
-  if (!industries().includes(selectedIndustry)) selectedIndustry = allIndustry;
-  tabs.innerHTML = industries()
-    .map((industry) => `<button type="button" class="tab-button ${industry === selectedIndustry ? "active" : ""}" data-industry="${escapeHtml(industry)}">${escapeHtml(industry)}</button>`)
-    .join("");
+  const majors = majorIndustries();
+  if (!majors.includes(selectedMajorIndustry)) selectedMajorIndustry = allIndustry;
+  const subs = subIndustries(selectedMajorIndustry);
+  if (!subs.includes(selectedSubIndustry)) selectedSubIndustry = allIndustry;
+  selectedIndustry = selectedMajorIndustry === allIndustry
+    ? allIndustry
+    : selectedSubIndustry === allIndustry
+      ? selectedMajorIndustry
+      : `${selectedMajorIndustry} / ${selectedSubIndustry}`;
 
-  const visible = selectedIndustry === allIndustry ? watchlist : watchlist.filter((item) => item.industry === selectedIndustry);
+  tabs.innerHTML = `
+    <div class="industry-row industry-major">
+      ${majors
+        .map((industry) => `<button type="button" class="tab-button ${industry === selectedMajorIndustry ? "active" : ""}" data-major-industry="${escapeHtml(industry)}">${escapeHtml(industry)}</button>`)
+        .join("")}
+    </div>
+    ${selectedMajorIndustry === allIndustry ? "" : `
+      <div class="industry-row industry-sub">
+        ${subs
+          .map((industry) => `<button type="button" class="tab-button sub ${industry === selectedSubIndustry ? "active" : ""}" data-sub-industry="${escapeHtml(industry)}">${escapeHtml(industry)}</button>`)
+          .join("")}
+      </div>
+    `}
+  `;
+
+  const visible = watchlist.filter(itemMatchesSelectedIndustry);
   list.innerHTML = visible.length
     ? visible
         .map(
@@ -346,9 +393,56 @@ function addWatchItem(stockNo, name, industry) {
   } else {
     watchlist.push({ stockNo: cleanStock, name: name.trim(), industry: cleanIndustry });
   }
+  const parts = industryParts(cleanIndustry);
+  selectedMajorIndustry = parts.major;
+  selectedSubIndustry = parts.sub;
   selectedIndustry = cleanIndustry;
   saveWatchlist();
   renderWatchlist();
+}
+
+function loadDrawingStore() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(drawingStorageKey) || "{}");
+    return saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveDrawingStore() {
+  localStorage.setItem(drawingStorageKey, JSON.stringify(drawingStore));
+}
+
+function drawingStockKey(stockNo = currentLoadedStock) {
+  return String(stockNo || document.getElementById("stockNo")?.value || "").trim();
+}
+
+function saveAnnotationsForStock(stockNo = currentLoadedStock) {
+  const key = drawingStockKey(stockNo);
+  if (!key) return;
+  drawingStore[key] = drawingStrokes.map((stroke) => ({
+    color: stroke.color,
+    width: stroke.width,
+    points: stroke.points.map((point) => ({ x: point.x, y: point.y })),
+  }));
+  saveDrawingStore();
+}
+
+function loadAnnotationsForStock(stockNo = currentLoadedStock) {
+  const key = drawingStockKey(stockNo);
+  drawingStrokes.length = 0;
+  const saved = Array.isArray(drawingStore[key]) ? drawingStore[key] : [];
+  for (const stroke of saved) {
+    if (!Array.isArray(stroke.points) || stroke.points.length < 2) continue;
+    drawingStrokes.push({
+      color: stroke.color || "#d64550",
+      width: Number(stroke.width || 3),
+      points: stroke.points
+        .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
+        .map((point) => ({ x: point.x, y: point.y })),
+    });
+  }
 }
 
 function setupCanvas(canvas) {
@@ -406,9 +500,10 @@ function redrawAnnotations() {
   if (activeStroke) drawStroke(ctx, activeStroke, rect.width, rect.height);
 }
 
-function clearAnnotations() {
+function clearAnnotations(persist = true) {
   drawingStrokes.length = 0;
   activeStroke = null;
+  if (persist) saveAnnotationsForStock();
   redrawAnnotations();
 }
 
@@ -467,7 +562,6 @@ function redrawCharts() {
 
 function setChartZoom(nextZoom) {
   chartZoom = Math.min(6, Math.max(1, nextZoom));
-  clearAnnotations();
   redrawCharts();
 }
 
@@ -819,8 +913,9 @@ async function load() {
   const response = await fetch(`/api/twse?stockNo=${encodeURIComponent(stockNo)}&months=${months}&key=${encodeURIComponent(key)}`);
   const data = await response.json();
   if (!response.ok || data.error) throw new Error(data.error || "讀取失敗");
-  if (currentLoadedStock && currentLoadedStock !== stockNo) clearAnnotations();
+  if (currentLoadedStock && currentLoadedStock !== stockNo) saveAnnotationsForStock(currentLoadedStock);
   currentLoadedStock = stockNo;
+  loadAnnotationsForStock(stockNo);
   latestChartData = data;
   chartZoom = 1;
   renderSummary(data);
@@ -849,9 +944,16 @@ document.getElementById("watchForm")?.addEventListener("submit", (event) => {
 });
 
 document.getElementById("industryTabs")?.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-industry]");
-  if (!button) return;
-  selectedIndustry = button.dataset.industry;
+  const majorButton = event.target.closest("[data-major-industry]");
+  if (majorButton) {
+    selectedMajorIndustry = majorButton.dataset.majorIndustry;
+    selectedSubIndustry = allIndustry;
+    renderWatchlist();
+    return;
+  }
+  const subButton = event.target.closest("[data-sub-industry]");
+  if (!subButton) return;
+  selectedSubIndustry = subButton.dataset.subIndustry;
   renderWatchlist();
 });
 
@@ -946,6 +1048,7 @@ function finishActiveStroke(event) {
   event?.preventDefault();
   if (activeStroke.points.length > 1) drawingStrokes.push(activeStroke);
   activeStroke = null;
+  saveAnnotationsForStock();
   redrawAnnotations();
 }
 
