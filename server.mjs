@@ -8,8 +8,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(__dirname, "public");
 const port = Number(process.env.PORT || 8787);
 const accessToken = process.env.ACCESS_TOKEN || "";
-const appVersion = "1.1.0-phase1-acceptance";
-const frontendVersion = "phase1-acceptance-1";
+const appVersion = "1.2.0-phase2-financial";
+const frontendVersion = "phase2-financial-1";
 const deployedAt = new Date().toISOString();
 const includedCommits = ["cd3171c", "90aa9b8"];
 const gitCommit =
@@ -36,6 +36,12 @@ const mime = {
 const twseStockDayUrl = "https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY";
 const tpexTradingStockUrl = "https://www.tpex.org.tw/www/zh-tw/afterTrading/tradingStock";
 const finMindUrl = "https://api.finmindtrade.com/api/v4/data";
+const twseValuationUrl = "https://openapi.twse.com.tw/v1/exchangeReport/BWIBBU_ALL";
+const twseRevenueUrl = "https://openapi.twse.com.tw/v1/opendata/t187ap05_L";
+const twseIncomeUrl = "https://openapi.twse.com.tw/v1/opendata/t187ap14_L";
+const tpexValuationUrl = "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_peratio_analysis";
+const tpexRevenueUrl = "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap05_O";
+const tpexIncomeUrl = "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap14_O";
 
 const stockUniverse = [
   { stockNo: "2330", name: "台積電", industry: "半導體 / 晶圓代工", marketCap: "large" },
@@ -158,6 +164,22 @@ const parseNumber = (value) => {
 };
 
 const safePct = (value) => (Number.isFinite(value) ? value : null);
+
+const parsePercentNumber = (value) => {
+  const n = parseNumber(value);
+  return n == null ? null : n / 100;
+};
+
+const clamp = (min, max, value) => Math.max(min, Math.min(max, value));
+
+const parseRocPeriod = (value) => {
+  const text = String(value || "");
+  if (!/^\d{5,7}$/.test(text)) return text || null;
+  const year = Number(text.slice(0, 3)) + 1911;
+  const month = text.length >= 5 ? text.slice(3, 5) : "01";
+  const day = text.length >= 7 ? text.slice(5, 7) : null;
+  return day ? `${year}-${month}-${day}` : `${year}-${month}`;
+};
 
 const parseTaiwanDate = (value) => {
   const [rocYear, month, day] = String(value).split("/").map(Number);
@@ -465,6 +487,479 @@ async function fetchFinMind(stockNo, months) {
   url.searchParams.set("data_id", stockNo);
   url.searchParams.set("start_date", start.toISOString().slice(0, 10));
   return fetchJson(url);
+}
+
+let openDataCache = new Map();
+
+async function fetchOpenData(url, ttlMs = 10 * 60 * 1000) {
+  const cached = openDataCache.get(url);
+  if (cached && cached.expiresAt > Date.now()) return cached.data;
+  const data = await fetchJson(url);
+  if (!Array.isArray(data)) throw new Error(`OpenAPI format changed: ${url}`);
+  openDataCache.set(url, { data, expiresAt: Date.now() + ttlMs });
+  return data;
+}
+
+async function findOpenDataRow(stockNo, configs) {
+  const errors = [];
+  for (const config of configs) {
+    try {
+      const rows = await fetchOpenData(config.url);
+      const row = rows.find((item) => String(item[config.codeKey] || "").trim() === stockNo);
+      if (row) return { row, config };
+    } catch (error) {
+      errors.push(error.message);
+    }
+  }
+  if (errors.length) console.error(JSON.stringify({ level: "warn", stockNo, financialOpenDataErrors: errors }));
+  return null;
+}
+
+const revenueConfigs = [
+  { market: "TWSE", url: twseRevenueUrl, codeKey: "公司代號", source: "TWSE OpenAPI t187ap05_L" },
+  { market: "TPEx", url: tpexRevenueUrl, codeKey: "公司代號", source: "TPEx OpenAPI mopsfin_t187ap05_O" },
+];
+
+const incomeConfigs = [
+  { market: "TWSE", url: twseIncomeUrl, codeKey: "公司代號", epsKey: "基本每股盈餘(元)", yearKey: "年度", source: "TWSE OpenAPI t187ap14_L" },
+  { market: "TPEx", url: tpexIncomeUrl, codeKey: "SecuritiesCompanyCode", epsKey: "基本每股盈餘", yearKey: "Year", source: "TPEx OpenAPI mopsfin_t187ap14_O" },
+];
+
+const valuationConfigs = [
+  { market: "TWSE", url: twseValuationUrl, codeKey: "Code", peKey: "PEratio", pbKey: "PBratio", yieldKey: "DividendYield", source: "TWSE BWIBBU_ALL" },
+  { market: "TPEx", url: tpexValuationUrl, codeKey: "SecuritiesCompanyCode", peKey: "PriceEarningRatio", pbKey: "PriceBookRatio", yieldKey: "YieldRatio", source: "TPEx mainboard peratio analysis" },
+];
+
+async function fetchLatestRevenueOpenData(stockNo) {
+  const found = await findOpenDataRow(stockNo, revenueConfigs);
+  if (!found) return null;
+  const { row, config } = found;
+  return {
+    market: config.market,
+    companyName: row["公司名稱"] || null,
+    industry: row["產業別"] || null,
+    monthlyRevenue: parseNumber(row["營業收入-當月營收"]),
+    monthlyRevenue_amount: moneyAmount(parseNumber(row["營業收入-當月營收"])),
+    previousMonthRevenue: parseNumber(row["營業收入-上月營收"]),
+    previousYearRevenue: parseNumber(row["營業收入-去年當月營收"]),
+    mom: parsePercentNumber(row["營業收入-上月比較增減(%)"]),
+    yoy: parsePercentNumber(row["營業收入-去年同月增減(%)"]),
+    cumulativeRevenue: parseNumber(row["累計營業收入-當月累計營收"]),
+    cumulativeRevenue_amount: moneyAmount(parseNumber(row["累計營業收入-當月累計營收"])),
+    cumulativePreviousYearRevenue: parseNumber(row["累計營業收入-去年累計營收"]),
+    cumulativeYoy: parsePercentNumber(row["累計營業收入-前期比較增減(%)"]),
+    note: row["備註"] || null,
+    metadata: sourceMeta({
+      data_source: config.source,
+      published_at: parseRocPeriod(row["出表日期"]),
+      reporting_period: parseRocPeriod(row["資料年月"]),
+      is_estimated: false,
+      confidence: 0.9,
+      source_url: config.url,
+    }),
+  };
+}
+
+async function fetchLatestIncomeOpenData(stockNo) {
+  const found = await findOpenDataRow(stockNo, incomeConfigs);
+  if (!found) return null;
+  const { row, config } = found;
+  const revenue = parseNumber(row["營業收入"]);
+  const operatingIncome = parseNumber(row["營業利益"]);
+  const netIncome = parseNumber(row["稅後淨利"]);
+  const eps = parseNumber(row[config.epsKey]);
+  const year = parseNumber(row[config.yearKey]);
+  const quarter = parseNumber(row["季別"]);
+  const period = year && quarter ? `${year + 1911}Q${quarter}` : null;
+  return {
+    market: config.market,
+    companyName: row["公司名稱"] || row["CompanyName"] || null,
+    industry: row["產業別"] || null,
+    completedQuarters: quarter || null,
+    cumulativeEps: eps,
+    quarterRevenue: revenue,
+    quarterRevenue_amount: moneyAmount(revenue),
+    operatingIncome,
+    operatingIncome_amount: moneyAmount(operatingIncome),
+    nonOperatingIncome: parseNumber(row["營業外收入及支出"]),
+    netIncome,
+    netIncome_amount: moneyAmount(netIncome),
+    eps,
+    operatingMargin: revenue ? operatingIncome / revenue : null,
+    netMargin: revenue ? netIncome / revenue : null,
+    grossMargin: null,
+    grossMarginStatus: "官方端點未提供銷貨成本或毛利欄位，第一小節不估算公告毛利率",
+    estimatedShares: eps ? (netIncome * 1000) / eps : null,
+    shares: shareAmount(eps ? (netIncome * 1000) / eps : null, "由公告稅後淨利 / EPS 反推，非官方流通股數", parseRocPeriod(row["出表日期"] || row["Date"]), false),
+    unit: "新台幣千元，EPS 為元",
+    metadata: sourceMeta({
+      data_source: config.source,
+      published_at: parseRocPeriod(row["出表日期"] || row["Date"]),
+      reporting_period: period,
+      is_estimated: false,
+      confidence: 0.88,
+      source_url: config.url,
+    }),
+  };
+}
+
+async function fetchLatestValuationOpenData(stockNo) {
+  const found = await findOpenDataRow(stockNo, valuationConfigs);
+  if (!found) return null;
+  const { row, config } = found;
+  return {
+    market: config.market,
+    peRatio: parseNumber(row[config.peKey]),
+    pbRatio: parseNumber(row[config.pbKey]),
+    dividendYield: parsePercentNumber(row[config.yieldKey]),
+    date: parseRocPeriod(row["Date"]),
+    metadata: sourceMeta({
+      data_source: config.source,
+      published_at: parseRocPeriod(row["Date"]),
+      reporting_period: parseRocPeriod(row["Date"]),
+      is_estimated: false,
+      confidence: 0.88,
+      source_url: config.url,
+    }),
+  };
+}
+
+function moneyAmount(rawValue, unit = "千元") {
+  const multiplier = unit === "千元" ? 1000 : 1;
+  return {
+    raw_value: rawValue ?? null,
+    unit,
+    normalized_value: rawValue == null ? null : rawValue * multiplier,
+    normalized_unit: "元",
+  };
+}
+
+function shareAmount(value, source, asOfDate, isUserOverride = false) {
+  return {
+    shares_outstanding: value ?? null,
+    shares_unit: "股",
+    shares_source: source,
+    shares_as_of_date: asOfDate ?? null,
+    shares_is_user_override: isUserOverride,
+  };
+}
+
+function normalizeRate(value, fallback, min = -0.95, max = 2) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return clamp(min, max, n);
+}
+
+function normalizeTaxRate(value, fallback = 0.2) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return clamp(0, 1, n);
+}
+
+function defaultEpsModelInputs(income, valuation) {
+  const operatingMargin = income?.operatingMargin ?? 0.15;
+  const grossMargin = clamp(0.05, 0.75, operatingMargin + 0.12);
+  const opexRate = clamp(0.03, 0.65, grossMargin - operatingMargin);
+  const basePe = valuation?.peRatio && valuation.peRatio > 0 ? valuation.peRatio : 15;
+  return {
+    applyAll: {
+      revenueGrowth: 0,
+      grossMargin,
+      operatingExpenseRate: opexRate,
+      taxRate: 0.2,
+    },
+    quarters: {},
+    sharesOutstanding: income?.estimatedShares ? Math.round(income.estimatedShares) : null,
+    pessimisticPe: Math.max(5, Math.round(basePe * 0.75 * 10) / 10),
+    basePe: Math.round(basePe * 10) / 10,
+    optimisticPe: Math.round(basePe * 1.25 * 10) / 10,
+  };
+}
+
+function quarterInput(inputs, quarter, scenarioGrowthDelta = 0, scenarioMarginDelta = 0) {
+  const specific = inputs.quarters?.[`Q${quarter}`] || {};
+  return {
+    revenueGrowth: normalizeRate(specific.revenueGrowth, inputs.applyAll.revenueGrowth) + scenarioGrowthDelta,
+    grossMargin: normalizeRate(specific.grossMargin, inputs.applyAll.grossMargin, -1, 1.5) + scenarioMarginDelta,
+    operatingExpenseRate: normalizeRate(specific.operatingExpenseRate, inputs.applyAll.operatingExpenseRate, 0, 1.5),
+    taxRate: normalizeTaxRate(specific.taxRate, inputs.applyAll.taxRate),
+    source: specific.source || "model_default_or_user_input",
+  };
+}
+
+function calculateForecastQuarter(baseQuarterRevenueThousand, inputs, quarter, scenarioAdjustments = {}) {
+  const q = quarterInput(inputs, quarter, scenarioAdjustments.growthDelta || 0, scenarioAdjustments.marginDelta || 0);
+  const revenueThousand = baseQuarterRevenueThousand * (1 + q.revenueGrowth);
+  const grossProfitThousand = revenueThousand * q.grossMargin;
+  const operatingExpenseThousand = revenueThousand * q.operatingExpenseRate;
+  const operatingIncomeThousand = grossProfitThousand - operatingExpenseThousand;
+  const netIncomeThousand = operatingIncomeThousand * (1 - q.taxRate);
+  const shares = Number(inputs.sharesOutstanding || 0);
+  const quarterEps = shares > 0 ? (netIncomeThousand * 1000) / shares : null;
+  return {
+    quarter: `Q${quarter}`,
+    is_estimated: true,
+    revenueGrowth: q.revenueGrowth,
+    grossMargin: {
+      value: q.grossMargin,
+      source: q.source === "user_input" ? "使用者假設" : "模型預設假設",
+      is_estimated: true,
+      is_user_input: q.source === "user_input",
+      default_reason: "官方 OpenAPI 未提供毛利率；預設以營業利益率加 12 個百分點作為模型假設，非公司公告毛利率",
+    },
+    operatingExpenseRate: q.operatingExpenseRate,
+    taxRate: q.taxRate,
+    revenue: revenueThousand,
+    revenue_amount: moneyAmount(revenueThousand),
+    grossProfit: grossProfitThousand,
+    operatingIncome: operatingIncomeThousand,
+    netIncome: netIncomeThousand,
+    net_income_amount: moneyAmount(netIncomeThousand),
+    quarterEps,
+    warnings: [
+      q.grossMargin < q.operatingExpenseRate ? "毛利率低於營業費用率，營業利益可能為負" : null,
+      operatingIncomeThousand < 0 ? "營業利益為負" : null,
+      netIncomeThousand < 0 ? "稅後淨利為負" : null,
+      quarterEps != null && quarterEps < 0 ? "EPS 為負" : null,
+    ].filter(Boolean),
+  };
+}
+
+function fairPriceFromPe(annualEps, peMultiple) {
+  if (annualEps == null) return { value: null, label: "資料不足" };
+  if (annualEps <= 0) return { value: null, label: "本益比法不適用" };
+  if (!Number.isFinite(peMultiple) || peMultiple <= 0) return { value: null, label: "PE 不適用" };
+  return { value: annualEps * peMultiple, label: null };
+}
+
+function peMeta(valuation, inputs, key, defaultMethod) {
+  const userProvided = Boolean(inputs.userPeOverrides?.[key]);
+  return {
+    pe_source: userProvided ? "使用者自訂" : (valuation?.peRatio && valuation.peRatio > 0 ? "目前市場本益比" : "模型預設假設"),
+    pe_as_of_date: userProvided ? new Date().toISOString() : (valuation?.metadata?.reporting_period || null),
+    pe_is_user_input: userProvided,
+    pe_method: userProvided ? "user_input" : defaultMethod,
+  };
+}
+
+function calculateScenario(label, completedQuarters, actualCumulativeEps, baseQuarterRevenue, inputs, valuation, options) {
+  const forecastQuarters = [];
+  for (let q = completedQuarters + 1; q <= 4; q++) {
+    forecastQuarters.push(calculateForecastQuarter(baseQuarterRevenue, inputs, q, options));
+  }
+  const forecastEps = forecastQuarters.reduce((sum, q) => sum + (q.quarterEps ?? 0), 0);
+  const hasActual = actualCumulativeEps != null && completedQuarters > 0;
+  const annualEps = hasActual ? actualCumulativeEps + forecastEps : (forecastQuarters[0]?.quarterEps == null ? null : forecastQuarters[0].quarterEps * 4);
+  const isAnnualized = !hasActual;
+  const peMultiple = inputs[options.peKey];
+  const fair = fairPriceFromPe(annualEps, peMultiple);
+  return {
+    label,
+    actual_completed_quarters: completedQuarters,
+    actual_cumulative_eps: hasActual ? actualCumulativeEps : null,
+    forecast_quarters: forecastQuarters,
+    annual_eps_method: isAnnualized
+      ? "年化 EPS，非完整全年預估"
+      : `全年預估 EPS = 已公告 ${completedQuarters} 季累計 EPS + ${forecastQuarters.map((q) => q.quarter).join(" + ")} 模型 EPS`,
+    is_annualized: isAnnualized,
+    annual_eps: annualEps,
+    peMultiple,
+    ...peMeta(valuation, inputs, options.peKey, options.peMethod),
+    fairPrice: fair.value,
+    fairPriceLabel: fair.label,
+    warnings: [...new Set([
+      ...forecastQuarters.flatMap((q) => q.warnings),
+      annualEps != null && annualEps <= 0 ? "全年 EPS 為負或零，本益比法不適用" : null,
+      !Number.isFinite(peMultiple) || peMultiple <= 0 ? "PE 為 0、負數或非數字，本益比法不適用" : null,
+    ].filter(Boolean))],
+  };
+}
+
+function buildQuarterOverrides(overrides, defaults) {
+  const quarters = {};
+  for (const quarter of [2, 3, 4]) {
+    const qKey = `q${quarter}`;
+    const hasSpecific = ["RevenueGrowth", "GrossMargin", "OperatingExpenseRate", "TaxRate"].some((suffix) => overrides[`${qKey}${suffix}`] != null);
+    if (hasSpecific) {
+      quarters[`Q${quarter}`] = {
+        revenueGrowth: overrides[`${qKey}RevenueGrowth`] ?? overrides.quarterRevenueGrowth ?? defaults.applyAll.revenueGrowth,
+        grossMargin: overrides[`${qKey}GrossMargin`] ?? overrides.grossMargin ?? defaults.applyAll.grossMargin,
+        operatingExpenseRate: overrides[`${qKey}OperatingExpenseRate`] ?? overrides.operatingExpenseRate ?? defaults.applyAll.operatingExpenseRate,
+        taxRate: overrides[`${qKey}TaxRate`] ?? overrides.taxRate ?? defaults.applyAll.taxRate,
+        source: "user_input",
+      };
+    }
+  }
+  return quarters;
+}
+
+function buildEpsModel(revenue, income, valuation, overrides = {}) {
+  const defaults = defaultEpsModelInputs(income, valuation);
+  const userShareOverride = overrides.sharesOutstanding != null;
+  const userPeOverrides = {
+    pessimisticPe: overrides.pessimisticPe != null,
+    basePe: overrides.basePe != null,
+    optimisticPe: overrides.optimisticPe != null,
+  };
+  const inputs = {
+    applyAll: {
+      revenueGrowth: overrides.quarterRevenueGrowth ?? defaults.applyAll.revenueGrowth,
+      grossMargin: overrides.grossMargin ?? defaults.applyAll.grossMargin,
+      operatingExpenseRate: overrides.operatingExpenseRate ?? defaults.applyAll.operatingExpenseRate,
+      taxRate: overrides.taxRate ?? defaults.applyAll.taxRate,
+    },
+    quarters: buildQuarterOverrides(overrides, defaults),
+    sharesOutstanding: overrides.sharesOutstanding ?? defaults.sharesOutstanding,
+    pessimisticPe: overrides.pessimisticPe ?? defaults.pessimisticPe,
+    basePe: overrides.basePe ?? defaults.basePe,
+    optimisticPe: overrides.optimisticPe ?? defaults.optimisticPe,
+    userPeOverrides,
+  };
+  const completedQuarters = income?.completedQuarters ?? 0;
+  const actualCumulativeEps = income?.cumulativeEps ?? null;
+  const baseQuarterRevenue = income?.quarterRevenue || (revenue?.monthlyRevenue ? revenue.monthlyRevenue * 3 : null);
+  const shares = Number(inputs.sharesOutstanding || 0);
+  const canEstimate = baseQuarterRevenue != null && Number.isFinite(shares) && shares > 0;
+  const scenarios = canEstimate
+    ? {
+        pessimistic: calculateScenario("悲觀情境", completedQuarters, actualCumulativeEps, baseQuarterRevenue, inputs, valuation, {
+          growthDelta: -0.05,
+          marginDelta: -0.02,
+          peKey: "pessimisticPe",
+          peMethod: valuation?.peRatio ? "current_market_pe_x_0.75" : "fixed_default_pe_11.3",
+        }),
+        base: calculateScenario("基準情境", completedQuarters, actualCumulativeEps, baseQuarterRevenue, inputs, valuation, {
+          growthDelta: 0,
+          marginDelta: 0,
+          peKey: "basePe",
+          peMethod: valuation?.peRatio ? "current_market_pe" : "fixed_default_pe_15",
+        }),
+        optimistic: calculateScenario("樂觀情境", completedQuarters, actualCumulativeEps, baseQuarterRevenue, inputs, valuation, {
+          growthDelta: 0.05,
+          marginDelta: 0.02,
+          peKey: "optimisticPe",
+          peMethod: valuation?.peRatio ? "current_market_pe_x_1.25" : "fixed_default_pe_18.8",
+        }),
+      }
+    : { pessimistic: null, base: null, optimistic: null };
+  const shareInfo = shareAmount(
+    Number.isFinite(shares) && shares > 0 ? shares : null,
+    userShareOverride ? "使用者假設" : "由公告稅後淨利 / EPS 反推，非官方流通股數",
+    userShareOverride ? new Date().toISOString() : income?.metadata?.published_at,
+    userShareOverride,
+  );
+  return {
+    is_estimated: true,
+    canEstimate,
+    inputs,
+    baseQuarter: {
+      name: income?.metadata?.reporting_period || revenue?.metadata?.reporting_period || null,
+      revenue: baseQuarterRevenue,
+      revenue_amount: moneyAmount(baseQuarterRevenue),
+      is_actual: Boolean(income?.quarterRevenue),
+      inference_basis: income?.quarterRevenue ? "最近已公告季度財報營業收入" : "最近月營收 * 3 推估基準季",
+      source_period: income?.metadata?.reporting_period || revenue?.metadata?.reporting_period || null,
+      published_at: income?.metadata?.published_at || revenue?.metadata?.published_at || null,
+    },
+    shares: shareInfo,
+    forecast_quarters: Array.from({ length: Math.max(0, 4 - completedQuarters) }, (_, i) => `Q${completedQuarters + i + 1}`),
+    annual_eps_method: scenarios.base?.annual_eps_method || "資料不足，無法計算全年預估 EPS",
+    is_annualized: Boolean(scenarios.base?.is_annualized),
+    annual_eps: scenarios.base?.annual_eps ?? null,
+    scenarios,
+    formula: {
+      annualEps: "全年預估 EPS = 已公告季度累計 EPS + 尚未公告季度模型 EPS；若無公告累計 EPS，才標示為年化 EPS。",
+      revenue: "各季預估營收 = 基準季營收 * (1 + 該季 revenueGrowth + 情境調整)",
+      grossProfit: "毛利 = 各季預估營收 * 該季 grossMargin；毛利率為模型假設，非公司公告毛利率。",
+      operatingIncome: "營業利益 = 毛利 - 各季預估營收 * 該季 operatingExpenseRate",
+      netIncome: "稅後淨利 = 營業利益 * (1 - 該季 taxRate)",
+      eps: "單季 EPS = 稅後淨利(千元) * 1000 / 流通股數(股)",
+      fairPrice: "合理價 = 全年預估 EPS * 情境本益比；EPS <= 0 或 PE <= 0 時，本益比法不適用。",
+    },
+    metadata: sourceMeta({
+      data_source: "站內 EPS 模型預估，基礎資料來源：TWSE／TPEx OpenAPI",
+      reporting_period: income?.metadata?.reporting_period || revenue?.metadata?.reporting_period || null,
+      is_estimated: true,
+      confidence: canEstimate ? 0.5 : 0.2,
+      source_url: null,
+    }),
+  };
+}
+
+async function buildFinancialSummary(stockNo, overrides = {}) {
+  if (process.env.ENABLE_TEST_FIXTURES === "1" && overrides.fixture) {
+    if (overrides.fixture === "timeout") throw new Error("AbortError timeout");
+    if (overrides.fixture === "empty") throw new Error("查無財務資料");
+    if (overrides.fixture === "format") throw new Error("OpenAPI format changed: fixture");
+  }
+  const [revenue, income, valuation] = await Promise.all([
+    fetchLatestRevenueOpenData(stockNo).catch((error) => {
+      console.error(JSON.stringify({ level: "warn", stockNo, source: "revenue", error: error.message }));
+      return null;
+    }),
+    fetchLatestIncomeOpenData(stockNo).catch((error) => {
+      console.error(JSON.stringify({ level: "warn", stockNo, source: "income", error: error.message }));
+      return null;
+    }),
+    fetchLatestValuationOpenData(stockNo).catch((error) => {
+      console.error(JSON.stringify({ level: "warn", stockNo, source: "valuation", error: error.message }));
+      return null;
+    }),
+  ]);
+  if (!revenue && !income && !valuation) throw new Error("查無財務資料");
+  const epsModel = buildEpsModel(revenue, income, valuation, overrides);
+  const completenessCount = [revenue, income, valuation].filter(Boolean).length;
+  return {
+    stockNo,
+    name: income?.companyName || revenue?.companyName || stockMap.get(stockNo)?.name || stockNo,
+    actual: {
+      completed_quarters: income?.completedQuarters ?? 0,
+      cumulative_eps: income?.cumulativeEps ?? null,
+      shares_outstanding: epsModel.shares.shares_outstanding,
+      shares_unit: epsModel.shares.shares_unit,
+      shares_source: epsModel.shares.shares_source,
+      shares_as_of_date: epsModel.shares.shares_as_of_date,
+      shares_is_user_override: epsModel.shares.shares_is_user_override,
+      revenue,
+      profitability: income
+        ? {
+            quarterRevenue: income.quarterRevenue,
+            quarterRevenue_amount: income.quarterRevenue_amount,
+            eps: income.eps,
+            completedQuarters: income.completedQuarters,
+            cumulativeEps: income.cumulativeEps,
+            grossMargin: income.grossMargin,
+            grossMarginStatus: income.grossMarginStatus,
+            operatingMargin: income.operatingMargin,
+            netMargin: income.netMargin,
+            operatingIncome: income.operatingIncome,
+            operatingIncome_amount: income.operatingIncome_amount,
+            netIncome: income.netIncome,
+            netIncome_amount: income.netIncome_amount,
+            freeCashFlow: null,
+            freeCashFlowStatus: "第一小節尚未接入現金流量表，避免自行推估自由現金流",
+            estimatedShares: income.estimatedShares,
+            shares: income.shares,
+            unit: income.unit,
+            metadata: income.metadata,
+          }
+        : null,
+      valuation,
+    },
+    model: epsModel,
+    dataSeparation: {
+      actualLabel: "已公告數據：TWSE／TPEx OpenAPI 原始公告或交易所統計",
+      modelLabel: "模型預估：使用者輸入假設與站內公式試算，不等同公司公告或投資建議",
+    },
+    metadata: sourceMeta({
+      data_source: "TWSE／TPEx OpenAPI + 站內 EPS 模型",
+      published_at: income?.metadata?.published_at || revenue?.metadata?.published_at || valuation?.metadata?.published_at || null,
+      reporting_period: income?.metadata?.reporting_period || revenue?.metadata?.reporting_period || valuation?.metadata?.reporting_period || null,
+      is_estimated: true,
+      confidence: completenessCount >= 3 && epsModel.canEstimate ? 0.58 : 0.38,
+      source_url: null,
+    }),
+  };
 }
 
 function twseRows(result) {
@@ -1147,6 +1642,37 @@ const server = http.createServer(async (req, res) => {
       if (!assertAccess(url, res)) return;
       const stockNo = url.searchParams.get("stockNo") || "2330";
       const { data } = await withCache(cacheKey(url.pathname, url.searchParams), 10 * 60 * 1000, () => buildAiSummaryResponse(stockNo));
+      sendSuccess(res, data);
+      return;
+    }
+    if (url.pathname === "/api/financial") {
+      if (!assertAccess(url, res)) return;
+      const stockNo = url.searchParams.get("stockNo") || "2330";
+      const overrides = {
+        quarterRevenueGrowth: url.searchParams.has("quarterRevenueGrowth") ? Number(url.searchParams.get("quarterRevenueGrowth")) : undefined,
+        grossMargin: url.searchParams.has("grossMargin") ? Number(url.searchParams.get("grossMargin")) : undefined,
+        operatingExpenseRate: url.searchParams.has("operatingExpenseRate") ? Number(url.searchParams.get("operatingExpenseRate")) : undefined,
+        taxRate: url.searchParams.has("taxRate") ? Number(url.searchParams.get("taxRate")) : undefined,
+        sharesOutstanding: url.searchParams.has("sharesOutstanding") ? Number(url.searchParams.get("sharesOutstanding")) : undefined,
+        pessimisticPe: url.searchParams.has("pessimisticPe") ? Number(url.searchParams.get("pessimisticPe")) : undefined,
+        basePe: url.searchParams.has("basePe") ? Number(url.searchParams.get("basePe")) : undefined,
+        optimisticPe: url.searchParams.has("optimisticPe") ? Number(url.searchParams.get("optimisticPe")) : undefined,
+        q2RevenueGrowth: url.searchParams.has("q2RevenueGrowth") ? Number(url.searchParams.get("q2RevenueGrowth")) : undefined,
+        q2GrossMargin: url.searchParams.has("q2GrossMargin") ? Number(url.searchParams.get("q2GrossMargin")) : undefined,
+        q2OperatingExpenseRate: url.searchParams.has("q2OperatingExpenseRate") ? Number(url.searchParams.get("q2OperatingExpenseRate")) : undefined,
+        q2TaxRate: url.searchParams.has("q2TaxRate") ? Number(url.searchParams.get("q2TaxRate")) : undefined,
+        q3RevenueGrowth: url.searchParams.has("q3RevenueGrowth") ? Number(url.searchParams.get("q3RevenueGrowth")) : undefined,
+        q3GrossMargin: url.searchParams.has("q3GrossMargin") ? Number(url.searchParams.get("q3GrossMargin")) : undefined,
+        q3OperatingExpenseRate: url.searchParams.has("q3OperatingExpenseRate") ? Number(url.searchParams.get("q3OperatingExpenseRate")) : undefined,
+        q3TaxRate: url.searchParams.has("q3TaxRate") ? Number(url.searchParams.get("q3TaxRate")) : undefined,
+        q4RevenueGrowth: url.searchParams.has("q4RevenueGrowth") ? Number(url.searchParams.get("q4RevenueGrowth")) : undefined,
+        q4GrossMargin: url.searchParams.has("q4GrossMargin") ? Number(url.searchParams.get("q4GrossMargin")) : undefined,
+        q4OperatingExpenseRate: url.searchParams.has("q4OperatingExpenseRate") ? Number(url.searchParams.get("q4OperatingExpenseRate")) : undefined,
+        q4TaxRate: url.searchParams.has("q4TaxRate") ? Number(url.searchParams.get("q4TaxRate")) : undefined,
+        fixture: process.env.ENABLE_TEST_FIXTURES === "1" ? url.searchParams.get("fixture") : undefined,
+      };
+      Object.keys(overrides).forEach((key) => overrides[key] == null || (typeof overrides[key] === "number" && Number.isNaN(overrides[key])) ? delete overrides[key] : null);
+      const { data } = await withCache(cacheKey(url.pathname, url.searchParams), 10 * 60 * 1000, () => buildFinancialSummary(stockNo, overrides));
       sendSuccess(res, data);
       return;
     }
