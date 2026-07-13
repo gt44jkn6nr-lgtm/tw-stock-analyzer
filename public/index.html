@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>台股 AI 研究平台</title>
-    <link rel="stylesheet" href="./styles.css?v=phase2-financial-1" />
+    <link rel="stylesheet" href="./styles.css?v=phase2-news-1" />
   </head>
   <body>
     <div class="layout">
@@ -172,6 +172,26 @@
             <div id="epsScenarios" class="scenario-grid"></div>
             <div id="epsFormula" class="formula-box"></div>
           </section>
+          <section id="timelinePanel" class="panel timeline-panel">
+            <div class="panel-head">
+              <div>
+                <h2>新聞、公司公告與法說時間軸</h2>
+                <span id="timelineMeta">等待時間軸資料</span>
+              </div>
+              <button type="button" id="timelineRefresh">重新整理時間軸</button>
+            </div>
+            <div class="timeline-tabs" id="timelineTabs">
+              <button type="button" data-timeline-type="all" class="active">全部</button>
+              <button type="button" data-timeline-type="material">重大訊息</button>
+              <button type="button" data-timeline-type="revenue">營收</button>
+              <button type="button" data-timeline-type="financial">財報</button>
+              <button type="button" data-timeline-type="shareholder">股東會</button>
+              <button type="button" data-timeline-type="conference">法說</button>
+              <button type="button" data-timeline-type="news">新聞</button>
+            </div>
+            <div id="timelineSourceStatus" class="source-status-list"></div>
+            <div id="timelineList" class="timeline-list"></div>
+          </section>
           <section class="summary-grid" id="summary"></section>
 
           <section class="entry-panel" id="entryPanel">
@@ -326,6 +346,6 @@
         </section>
       </main>
     </div>
-    <script src="./app.js?v=phase2-financial-1"></script>
+    <script src="./app.js?v=phase2-news-1"></script>
   </body>
 </html>

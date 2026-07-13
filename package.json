@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.mjs",
     "test:acceptance": "node tests/phase1-acceptance.mjs",
-    "test:financial": "node tests/phase2-financial.mjs"
+    "test:financial": "node tests/phase2-financial.mjs",
+    "test:timeline": "node tests/phase2-news-timeline.mjs"
   },
   "engines": {
     "node": ">=20"

@@ -26,6 +26,7 @@ let notifyEnabled = localStorage.getItem(notifyStorageKey) === "1";
 let lastEntryNotifyKey = "";
 let latestChartData = null;
 let latestFinancialData = null;
+let selectedTimelineType = "all";
 let chartZoom = 1;
 let drawingStore = loadDrawingStore();
 const drawingStrokes = [];
@@ -189,6 +190,101 @@ function dataBadge(meta) {
 function sourceLink(meta) {
   if (!meta?.source_url) return "";
   return `<a class="source-link" href="${escapeHtml(meta.source_url)}" target="_blank" rel="noopener noreferrer">原始來源</a>`;
+}
+
+function timelineSourceLink(item) {
+  if (!item?.sourceUrl) return "";
+  return `<a class="source-link" href="${escapeHtml(item.sourceUrl)}" target="_blank" rel="noopener noreferrer">原始來源</a>`;
+}
+
+function timelineDateLine(item) {
+  return [
+    `事件：${item.eventDate || "無官方事件日"}`,
+    `公告：${item.announcedAt ? formatDateTime(item.announcedAt) : "--"}`,
+    `發布：${item.publishedAt || "--"}`,
+    `抓取：${formatDateTime(item.fetchedAt)}`,
+  ].join("｜");
+}
+
+function timelineSentimentLabel(item) {
+  const labels = {
+    positive: "正面",
+    negative: "負面",
+    neutral: "中性",
+    mixed: "正負並存",
+    unknown: "影響待確認",
+  };
+  return labels[item?.sentiment] || "影響待確認";
+}
+
+function renderTimeline(data) {
+  const meta = document.getElementById("timelineMeta");
+  const list = document.getElementById("timelineList");
+  const sources = document.getElementById("timelineSourceStatus");
+  if (!list) return;
+  const visibleItems = selectedTimelineType === "all" ? data.items || [] : (data.items || []).filter((item) => item.eventType === selectedTimelineType);
+  if (meta) meta.textContent = `${data.companyName || data.stockNo}｜${data.from} 至 ${data.to}｜${visibleItems.length} 筆${data.cacheNotice ? "｜目前顯示快取資料" : ""}`;
+  if (sources) {
+    sources.innerHTML = (data.sourceStatus || [])
+      .map((item) => `<span class="${item.ok ? "ok" : item.stale ? "stale" : "warn"}">${escapeHtml(item.sourceName || item.key)}：${escapeHtml(item.message || (item.ok ? "ok" : "暫無資料"))}</span>`)
+      .join("");
+  }
+  if (!visibleItems.length) {
+    list.innerHTML = `<div class="empty">目前沒有符合條件的時間軸事件。法說與新聞第一版只保留可插拔介面，未接入時不產生假資料。</div>`;
+    return;
+  }
+  list.innerHTML = visibleItems
+    .map((item) => {
+      const metrics = item.computedMetrics
+        ? Object.entries(item.computedMetrics)
+            .filter(([key, value]) => key !== "data_source" && value != null)
+            .map(([key, value]) => `<span>${escapeHtml(key)}：${escapeHtml(typeof value === "number" ? formatNumber(value) : value)}</span>`)
+            .join("")
+        : "";
+      return `
+        <article class="timeline-card ${escapeHtml(item.sentiment || "unknown")}">
+          <div class="timeline-card-head">
+            <div>
+              <span class="timeline-type">${escapeHtml(item.eventType)}</span>
+              <h3>${escapeHtml(item.title || "--")}</h3>
+              <small>${escapeHtml(timelineDateLine(item))}</small>
+            </div>
+            <div class="timeline-sentiment">
+              <strong>${escapeHtml(timelineSentimentLabel(item))}</strong>
+              <span>可信度 ${formatPct(item.sentimentConfidence)}</span>
+            </div>
+          </div>
+          <div class="timeline-source-box">
+            <b>官方/來源內容</b>
+            <p>${escapeHtml(item.sourceSummary || item.normalizedSummary || "來源未提供摘要，僅顯示結構化欄位。")}</p>
+            ${item.normalizedSummary && item.sourceSummary ? `<p>${escapeHtml(item.normalizedSummary)}</p>` : ""}
+            ${item.rawExcerpt ? `<small>${escapeHtml(item.rawExcerpt)}</small>` : ""}
+          </div>
+          <div class="timeline-model-box">
+            <b>模型解讀</b>
+            <p>${escapeHtml(item.modelInterpretation?.summary || "影響待確認。")}</p>
+            <small>判斷依據：${escapeHtml((item.sentimentBasis || []).join("；") || "資料不足")}</small>
+            <small>規則：${escapeHtml((item.classificationRules || []).join("；") || "無明確規則命中")}</small>
+          </div>
+          ${metrics ? `<div class="timeline-metrics">${metrics}<small>${escapeHtml(item.computedMetrics?.data_source || "")}</small></div>` : ""}
+          <div class="timeline-foot">
+            <span>${escapeHtml(item.sourceKind)}｜${escapeHtml(item.sourceName || "--")}｜${item.isCached ? "目前顯示快取資料" : "即時來源"}</span>
+            ${timelineSourceLink(item)}
+          </div>
+          ${(item.relatedSources || []).length ? `<div class="timeline-related">相關來源：${item.relatedSources.map((source) => escapeHtml(source.sourceName || source.title || "--")).join("、")}</div>` : ""}
+        </article>
+      `;
+    })
+    .join("");
+}
+
+async function loadTimeline(stockNo = document.getElementById("stockNo").value.trim() || "2330") {
+  const meta = document.getElementById("timelineMeta");
+  const list = document.getElementById("timelineList");
+  if (meta) meta.textContent = "正在讀取時間軸資料";
+  if (list) list.innerHTML = `<div class="loading">正在整理官方公告與營收事件</div>`;
+  const data = await fetchApi("/api/timeline", { stockNo, types: selectedTimelineType });
+  renderTimeline(data);
 }
 
 function uniqueWatchlist(items) {
@@ -1167,6 +1263,11 @@ async function loadStock() {
     if (meta) meta.textContent = error.message;
     const actuals = document.getElementById("financialActuals");
     if (actuals) actuals.innerHTML = `<div class="empty">財務資料暫時無法取得：${escapeHtml(error.message)}</div>`;
+  }), loadTimeline(stockNo).catch((error) => {
+    const meta = document.getElementById("timelineMeta");
+    if (meta) meta.textContent = error.message;
+    const list = document.getElementById("timelineList");
+    if (list) list.innerHTML = `<div class="empty">時間軸資料暫時無法取得：${escapeHtml(error.message)}</div>`;
   })]);
   if (stockResult.status === "rejected") {
     status.textContent = `價格/K 線資料暫時無法取得：${stockResult.reason?.message || "未知錯誤"}`;
@@ -1201,6 +1302,24 @@ document.getElementById("queryForm")?.addEventListener("submit", (event) => {
 document.getElementById("dashboardRefresh")?.addEventListener("click", () => {
   loadDashboard().catch((error) => {
     document.getElementById("dashboardMeta").textContent = error.message;
+  });
+});
+
+document.getElementById("timelineRefresh")?.addEventListener("click", () => {
+  loadTimeline().catch((error) => {
+    const meta = document.getElementById("timelineMeta");
+    if (meta) meta.textContent = error.message;
+  });
+});
+
+document.querySelectorAll("[data-timeline-type]").forEach((button) => {
+  button.addEventListener("click", () => {
+    selectedTimelineType = button.dataset.timelineType || "all";
+    document.querySelectorAll("[data-timeline-type]").forEach((item) => item.classList.toggle("active", item === button));
+    loadTimeline().catch((error) => {
+      const meta = document.getElementById("timelineMeta");
+      if (meta) meta.textContent = error.message;
+    });
   });
 });
 
