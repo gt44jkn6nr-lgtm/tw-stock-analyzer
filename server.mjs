@@ -1283,10 +1283,13 @@ function finMindRows(result) {
 
 async function findLatestAvailableMonth(stockNo, fetcher, rowParser) {
   const now = new Date();
-  for (let offset = 0; offset < 48; offset++) {
-    const date = addMonths(now, -offset);
-    const result = await fetcher(stockNo, date).catch(() => null);
-    if (rowParser(result).length) return date;
+  const maxLookbackMonths = 18;
+  const batchSize = 6;
+  for (let offset = 0; offset < maxLookbackMonths; offset += batchSize) {
+    const dates = Array.from({ length: Math.min(batchSize, maxLookbackMonths - offset) }, (_, index) => addMonths(now, -(offset + index)));
+    const results = await Promise.all(dates.map((date) => fetcher(stockNo, date).then((result) => ({ date, result })).catch(() => ({ date, result: null }))));
+    const found = results.find((item) => rowParser(item.result).length);
+    if (found) return found.date;
   }
   throw new Error("找不到可用的交易資料月份");
 }
@@ -1359,22 +1362,23 @@ async function fetchStockFromFinMind(stockNo, months) {
 }
 
 async function fetchStock(stockNo, months = 12) {
+  const meta = masterStockSync(stockNo);
+  const preferredMarket = meta?.market === "TPEx" ? "tpex" : meta?.market === "TWSE" && !meta?.isETF ? "twse" : null;
   let twseError;
   let tpexError;
-  try {
-    return await fetchStockFromMarket(stockNo, months, "twse");
-  } catch (error) {
-    twseError = error;
-  }
-  try {
-    return await fetchStockFromMarket(stockNo, months, "tpex");
-  } catch (error) {
-    tpexError = error;
+  const marketOrder = preferredMarket ? [preferredMarket] : ["twse", "tpex"];
+  for (const market of marketOrder) {
+    try {
+      return await fetchStockFromMarket(stockNo, months, market);
+    } catch (error) {
+      if (market === "twse") twseError = error;
+      if (market === "tpex") tpexError = error;
+    }
   }
   try {
     return await fetchStockFromFinMind(stockNo, months);
   } catch (finMindError) {
-    throw new Error(`${twseError.message} / ${tpexError.message} / ${finMindError.message}`);
+    throw new Error(`${twseError?.message || "TWSE skipped"} / ${tpexError?.message || "TPEx skipped"} / ${finMindError.message}`);
   }
 }
 
