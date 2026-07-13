@@ -120,8 +120,20 @@ function uniqueAliases(aliases) {
 
 function stockSearchWeight(stockNo, market, isETF) {
   if (isETF) return stockNo === "0050" ? 78 : 55;
-  const blueChips = new Set(["2330", "2454", "2317", "2308", "2382", "2412", "2303", "2881", "2882", "1303", "2002"]);
-  if (blueChips.has(stockNo)) return 100;
+  const blueChipWeights = {
+    "2330": 180,
+    "2454": 135,
+    "2317": 125,
+    "2308": 120,
+    "2382": 115,
+    "2412": 110,
+    "2303": 108,
+    "2881": 105,
+    "2882": 105,
+    "1303": 102,
+    "2002": 102,
+  };
+  if (blueChipWeights[stockNo]) return blueChipWeights[stockNo];
   if (market === "TWSE") return 68;
   if (market === "TPEx") return 58;
   return 40;
@@ -413,7 +425,7 @@ function buildSearchIndex({ stocks, topics, products, companies, versionChecksum
       englishName: 780,
       etf: 700,
       trustedManualAlias: 940,
-      topic: 620,
+      topic: 660,
       product: 640,
       industry: 540,
       fuzzy: 250,
@@ -454,7 +466,12 @@ async function main() {
     stocks.push(...previousStocks.filter((item) => item.isETF && !existing.has(item.companyId)));
   }
 
-  stocks = [...new Map(stocks.map((item) => [item.companyId, item])).values()].sort((a, b) => a.companyId.localeCompare(b.companyId));
+  stocks = [...new Map(stocks.map((item) => [item.companyId, item])).values()]
+    .map((item) => {
+      const weight = stockSearchWeight(item.stockNo, item.market, item.isETF);
+      return { ...item, searchWeight: weight, popularityWeight: weight };
+    })
+    .sort((a, b) => a.companyId.localeCompare(b.companyId));
 
   const recordCount = {
     total: stocks.length,

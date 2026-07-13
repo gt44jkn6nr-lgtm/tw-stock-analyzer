@@ -1,12 +1,12 @@
 # Search Accuracy Report
 
-Generated at: 2026-07-13T16:16:09.031Z
+Generated at: 2026-07-13T16:44:17.068Z
 
 - Cases: 220
 - Passed: 220
 - Failed: 0
 - Accuracy: 100.00%
-- Avg search time: 0.8802 ms
+- Avg search time: 0.8676 ms
 
 ## Critical Cases
 
@@ -19,7 +19,7 @@ Generated at: 2026-07-13T16:16:09.031Z
 | MTK | TWSE-2454 | rank1 | 1 | true | TWSE-2454 聯發科 |
 | MOS | product-mosfet | rank1 | 1 | true | product-mosfet MOSFET |
 | MOSFET | product-mosfet | top3 | 1 | true | product-mosfet MOSFET |
-| 台 | TWSE-2330 | top10 | 8 | true | TWSE-00703 台新MSCI中國 |
+| 台 | TWSE-2330 | top10 | 7 | true | TWSE-00703 台新MSCI中國 |
 | 5425 | TPEx-5425 | rank1 | 1 | true | TPEx-5425 台半 |
 | 台半 | TPEx-5425 | rank1 | 1 | true | TPEx-5425 台半 |
 | 8105 | TWSE-8105 | rank1 | 1 | true | TWSE-8105 凌巨 |

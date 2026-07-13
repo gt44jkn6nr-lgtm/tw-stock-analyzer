@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-07-13T16:16:09.031Z",
+  "generatedAt": "2026-07-13T16:44:17.068Z",
   "caseCount": 220,
   "passedCount": 220,
   "failedCount": 0,
   "accuracy": 1,
-  "elapsedMs": 193.654,
-  "avgSearchMs": 0.8802,
+  "elapsedMs": 190.875,
+  "avgSearchMs": 0.8676,
   "criticalCases": [
     {
       "query": "TSMC",
@@ -19,7 +19,7 @@
           "name": "台積電",
           "type": "stock",
           "stockNo": "2330",
-          "score": 1055
+          "score": 1147
         },
         {
           "id": "TWSE-6278",
@@ -56,7 +56,7 @@
           "name": "台積電",
           "type": "stock",
           "stockNo": "2330",
-          "score": 1055
+          "score": 1147
         }
       ]
     },
@@ -72,21 +72,21 @@
           "name": "台積電",
           "type": "stock",
           "stockNo": "2330",
-          "score": 1115
-        },
-        {
-          "id": "TWSE-2303",
-          "name": "聯電",
-          "type": "stock",
-          "stockNo": "2303",
-          "score": 365
+          "score": 1207
         },
         {
           "id": "TWSE-2308",
           "name": "台達電",
           "type": "stock",
           "stockNo": "2308",
-          "score": 365
+          "score": 388
+        },
+        {
+          "id": "TWSE-2303",
+          "name": "聯電",
+          "type": "stock",
+          "stockNo": "2303",
+          "score": 374.2
         },
         {
           "id": "TWSE-1233",
@@ -116,7 +116,7 @@
           "name": "聯發科",
           "type": "stock",
           "stockNo": "2454",
-          "score": 1055
+          "score": 1095.25
         },
         {
           "id": "TWSE-1459",
@@ -146,7 +146,7 @@
           "name": "聯發科",
           "type": "stock",
           "stockNo": "2454",
-          "score": 1055
+          "score": 1095.25
         }
       ]
     },
@@ -242,7 +242,7 @@
       "query": "台",
       "expectedId": "TWSE-2330",
       "rule": "top10",
-      "rank": 8,
+      "rank": 7,
       "passed": true,
       "topResults": [
         {

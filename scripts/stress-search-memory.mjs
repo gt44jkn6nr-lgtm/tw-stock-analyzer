@@ -1,5 +1,6 @@
 const baseUrl = process.env.BASE_URL || "http://127.0.0.1:8787/?key=stock554828";
 const rounds = Number(process.env.SEARCH_STRESS_ROUNDS || 10000);
+const concurrency = Math.max(1, Math.min(Number(process.env.SEARCH_STRESS_CONCURRENCY || 1), 100));
 const queries = ["2330", "台積電", "TSMC", "5425", "台半", "MOS", "MOSFET", "GB300", "DDR5", "TrendForce", "AI Server", "ETF 0050"];
 
 function apiUrl(path, params = {}) {
@@ -25,14 +26,25 @@ let failed = 0;
 let totalMs = 0;
 let cacheHits = 0;
 
-for (let i = 0; i < rounds; i++) {
-  const query = queries[i % queries.length];
-  const result = await timedFetch("/api/search/suggestions", { q: query });
-  totalMs += result.ms;
-  if (result.ok) ok += 1;
-  else failed += 1;
-  if (result.payload?.data?.metadata?.cacheHit) cacheHits += 1;
+let nextIndex = 0;
+async function worker() {
+  while (nextIndex < rounds) {
+    const i = nextIndex;
+    nextIndex += 1;
+    const query = queries[i % queries.length];
+    try {
+      const result = await timedFetch("/api/search/suggestions", { q: query });
+      totalMs += result.ms;
+      if (result.ok) ok += 1;
+      else failed += 1;
+      if (result.payload?.data?.metadata?.cacheHit) cacheHits += 1;
+    } catch {
+      failed += 1;
+    }
+  }
 }
+
+await Promise.all(Array.from({ length: concurrency }, () => worker()));
 
 if (global.gc) {
   global.gc();
@@ -45,6 +57,7 @@ const report = {
   generatedAt: new Date().toISOString(),
   baseUrl: new URL(baseUrl).origin,
   rounds,
+  concurrency,
   ok,
   failed,
   totalMs: Number(totalMs.toFixed(3)),

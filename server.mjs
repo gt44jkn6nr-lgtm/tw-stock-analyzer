@@ -442,6 +442,7 @@ function matchBasis(doc, q) {
 function scoreSearchDoc(doc, q, matchType) {
   let score = 0;
   const type = doc.type;
+  const shortCjkPrefix = q.length === 1 && /[\u3400-\u9fff]/.test(q);
   const exactStockNo = doc.stockNo && normalizeSearchText(doc.stockNo) === q;
   const exactName = doc.name && normalizeSearchText(doc.name) === q;
   const containedStockNo = doc.stockNo && q.includes(normalizeSearchText(doc.stockNo));
@@ -463,12 +464,14 @@ function scoreSearchDoc(doc, q, matchType) {
   else if (exactAlias) score += 860;
   else if (exactEnglish) score += 780;
   else if (type === "etf") score += 700;
+  else if (type === "topic") score += 660;
   else if (type === "product") score += 640;
-  else if (type === "topic") score += 620;
   else if (type === "industry") score += 540;
   else if (matchType === "prefix") score += 430;
   else if (matchType === "fuzzy") score += 250;
   else score += 300;
+  if (shortCjkPrefix && matchType === "prefix" && type === "stock") score += 250;
+  if (shortCjkPrefix && matchType === "prefix" && type === "etf") score -= 260;
   score += Number(doc.searchWeight || 0);
   score += Number(doc.popularityWeight || 0) * 0.15;
   return score;
