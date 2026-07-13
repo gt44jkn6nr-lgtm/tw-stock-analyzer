@@ -25,6 +25,7 @@ let activeStroke = null;
 let notifyEnabled = localStorage.getItem(notifyStorageKey) === "1";
 let lastEntryNotifyKey = "";
 let latestChartData = null;
+let latestFinancialData = null;
 let chartZoom = 1;
 let drawingStore = loadDrawingStore();
 const drawingStrokes = [];
@@ -135,6 +136,30 @@ function formatPct(value) {
 
 function formatNumber(value) {
   return value == null || !Number.isFinite(value) ? "--" : fmt.format(value);
+}
+
+function formatMoney(value) {
+  return value == null || !Number.isFinite(value) ? "--" : moneyFmt.format(value);
+}
+
+function inputPercent(id, value) {
+  const el = document.getElementById(id);
+  if (el && value != null && Number.isFinite(value)) el.value = String(Math.round(value * 10000) / 100);
+}
+
+function inputNumber(id, value, digits = 2) {
+  const el = document.getElementById(id);
+  if (el && value != null && Number.isFinite(value)) el.value = String(Number(value.toFixed ? value.toFixed(digits) : value));
+}
+
+function readPercentInput(id) {
+  const value = Number(document.getElementById(id)?.value);
+  return Number.isFinite(value) ? value / 100 : undefined;
+}
+
+function readNumberInput(id) {
+  const value = Number(document.getElementById(id)?.value);
+  return Number.isFinite(value) ? value : undefined;
 }
 
 function trendClass(value) {
@@ -672,6 +697,107 @@ function renderSummary(data) {
   `;
 }
 
+function metricCard(label, value, note = "", meta = null, estimated = false) {
+  return `
+    <div class="metric financial-metric">
+      <span>${escapeHtml(label)} ${estimated ? '<b class="data-badge estimate">模型預估</b>' : ""}</span>
+      <strong>${escapeHtml(value)}</strong>
+      ${note ? `<small>${escapeHtml(note)}</small>` : ""}
+      ${meta ? `<small>${escapeHtml(metaLine(meta))}</small>${sourceLink(meta)}` : ""}
+    </div>
+  `;
+}
+
+function renderFinancial(data, fillInputs = false) {
+  latestFinancialData = data;
+  const actuals = document.getElementById("financialActuals");
+  const scenarios = document.getElementById("epsScenarios");
+  const formula = document.getElementById("epsFormula");
+  const meta = document.getElementById("financialMeta");
+  if (!actuals || !scenarios || !formula) return;
+
+  const revenue = data.actual?.revenue;
+  const profit = data.actual?.profitability;
+  const valuation = data.actual?.valuation;
+  const model = data.model;
+  if (meta) meta.textContent = `${data.name || data.stockNo}｜${data.dataSeparation?.actualLabel || ""}｜${data.dataSeparation?.modelLabel || ""}`;
+
+  if (fillInputs && model?.inputs) {
+    inputPercent("epsGrowth", model.inputs.quarterRevenueGrowth);
+    inputPercent("epsGrossMargin", model.inputs.grossMargin);
+    inputPercent("epsOpexRate", model.inputs.operatingExpenseRate);
+    inputPercent("epsTaxRate", model.inputs.taxRate);
+    inputNumber("epsShares", model.inputs.sharesOutstanding, 0);
+    inputNumber("epsPeBear", model.inputs.pessimisticPe, 1);
+    inputNumber("epsPeBase", model.inputs.basePe, 1);
+    inputNumber("epsPeBull", model.inputs.optimisticPe, 1);
+  }
+
+  actuals.innerHTML = [
+    metricCard("月營收", revenue?.monthlyRevenue != null ? `${formatMoney(revenue.monthlyRevenue)} 千元` : "尚無資料", revenue ? `YoY ${formatPct(revenue.yoy)} / MoM ${formatPct(revenue.mom)}` : "官方月營收端點未提供此股票", revenue?.metadata),
+    metricCard("累計營收年增率", revenue?.cumulativeYoy != null ? formatPct(revenue.cumulativeYoy) : "尚無資料", revenue?.note || "", revenue?.metadata),
+    metricCard("單季 EPS", profit?.eps != null ? `${formatNumber(profit.eps)} 元` : "尚無資料", "已公告數據", profit?.metadata),
+    metricCard("累計 EPS", profit?.cumulativeEps != null ? `${formatNumber(profit.cumulativeEps)} 元` : "尚無資料", "第一小節尚未接入累計 EPS 欄位", profit?.metadata),
+    metricCard("毛利率", profit?.grossMargin != null ? formatPct(profit.grossMargin) : "尚無資料", profit?.grossMarginStatus || "官方端點未提供毛利欄位", profit?.metadata),
+    metricCard("營業利益率", profit?.operatingMargin != null ? formatPct(profit.operatingMargin) : "尚無資料", "營業利益 / 營業收入", profit?.metadata),
+    metricCard("稅後淨利率", profit?.netMargin != null ? formatPct(profit.netMargin) : "尚無資料", "稅後淨利 / 營業收入", profit?.metadata),
+    metricCard("自由現金流", profit?.freeCashFlow != null ? formatMoney(profit.freeCashFlow) : "尚無資料", profit?.freeCashFlowStatus || "尚未接入現金流量表", profit?.metadata),
+    metricCard("本益比", valuation?.peRatio != null ? `${formatNumber(valuation.peRatio)} 倍` : "尚無資料", "交易所估值統計", valuation?.metadata),
+    metricCard("股價淨值比", valuation?.pbRatio != null ? `${formatNumber(valuation.pbRatio)} 倍` : "尚無資料", "交易所估值統計", valuation?.metadata),
+  ].join("");
+
+  const scenarioRows = [
+    ["悲觀情境", model?.scenarios?.pessimistic],
+    ["基準情境", model?.scenarios?.base],
+    ["樂觀情境", model?.scenarios?.optimistic],
+  ];
+  scenarios.innerHTML = scenarioRows
+    .map(([label, item]) => {
+      if (!item) {
+        return `<div class="scenario-card"><strong>${label}</strong><span>資料不足，無法預估</span></div>`;
+      }
+      return `
+        <div class="scenario-card">
+          <strong>${label}</strong>
+          <span>單季 EPS：${formatNumber(item.quarterEps)} 元</span>
+          <span>全年 EPS：${formatNumber(item.annualEps)} 元</span>
+          <span>PE：${formatNumber(item.peMultiple)} 倍</span>
+          <b>合理價：${formatNumber(item.fairPrice)} 元</b>
+          <small>模型預估，非公告數據</small>
+        </div>
+      `;
+    })
+    .join("");
+
+  formula.innerHTML = `
+    <strong>EPS 試算公式</strong>
+    <ul>
+      ${Object.values(model?.formula || {}).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+    </ul>
+    <small>${escapeHtml(metaLine(model?.metadata))}</small>
+  `;
+}
+
+function epsOverrideParams() {
+  return {
+    quarterRevenueGrowth: readPercentInput("epsGrowth"),
+    grossMargin: readPercentInput("epsGrossMargin"),
+    operatingExpenseRate: readPercentInput("epsOpexRate"),
+    taxRate: readPercentInput("epsTaxRate"),
+    sharesOutstanding: readNumberInput("epsShares"),
+    pessimisticPe: readNumberInput("epsPeBear"),
+    basePe: readNumberInput("epsPeBase"),
+    optimisticPe: readNumberInput("epsPeBull"),
+  };
+}
+
+async function loadFinancial(stockNo = document.getElementById("stockNo").value.trim() || "2330", overrides = null) {
+  const meta = document.getElementById("financialMeta");
+  if (meta) meta.textContent = "正在讀取財務資料";
+  const data = await fetchApi("/api/financial", { stockNo, ...(overrides || {}) });
+  renderFinancial(data, !overrides);
+}
+
 function renderAiSummary(data) {
   const el = document.getElementById("aiSummary");
   if (!el) return;
@@ -1012,6 +1138,11 @@ async function loadStock() {
   const [stockData] = await Promise.all([fetchApi("/api/twse", { stockNo, months }), loadAiSummary(stockNo).catch((error) => {
     const el = document.getElementById("aiSummary");
     if (el) el.innerHTML = `<div class="empty">AI 摘要讀取失敗：${escapeHtml(error.message)}</div>`;
+  }), loadFinancial(stockNo).catch((error) => {
+    const meta = document.getElementById("financialMeta");
+    if (meta) meta.textContent = error.message;
+    const actuals = document.getElementById("financialActuals");
+    if (actuals) actuals.innerHTML = `<div class="empty">財務資料暫時無法取得：${escapeHtml(error.message)}</div>`;
   })]);
   if (currentLoadedStock && currentLoadedStock !== stockNo) saveAnnotationsForStock(currentLoadedStock);
   currentLoadedStock = stockNo;
@@ -1105,6 +1236,21 @@ document.getElementById("quoteRefresh")?.addEventListener("click", () => {
 document.getElementById("revenueFilter")?.addEventListener("change", (event) => {
   loadRevenueRadar(event.target.value).catch((error) => {
     document.getElementById("revenueRadarMeta").textContent = error.message;
+  });
+});
+
+document.getElementById("epsForm")?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  loadFinancial(undefined, epsOverrideParams()).catch((error) => {
+    const meta = document.getElementById("financialMeta");
+    if (meta) meta.textContent = error.message;
+  });
+});
+
+document.getElementById("financialRefresh")?.addEventListener("click", () => {
+  loadFinancial(undefined, epsOverrideParams()).catch((error) => {
+    const meta = document.getElementById("financialMeta");
+    if (meta) meta.textContent = error.message;
   });
 });
 

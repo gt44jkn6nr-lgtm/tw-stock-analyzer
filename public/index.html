@@ -126,6 +126,29 @@
           </div>
 
           <section id="aiSummary" class="ai-card"></section>
+          <section id="financialPanel" class="panel financial-panel">
+            <div class="panel-head">
+              <div>
+                <h2>財務資料與 EPS 預估</h2>
+                <span id="financialMeta">等待財務資料</span>
+              </div>
+              <button type="button" id="financialRefresh">重新試算</button>
+            </div>
+            <div id="financialActuals" class="financial-grid"></div>
+            <form id="epsForm" class="eps-form">
+              <label>季營收成長率<input id="epsGrowth" type="number" step="0.01" value="0" /></label>
+              <label>毛利率<input id="epsGrossMargin" type="number" step="0.01" /></label>
+              <label>營業費用率<input id="epsOpexRate" type="number" step="0.01" /></label>
+              <label>稅率<input id="epsTaxRate" type="number" step="0.01" /></label>
+              <label>流通股數<input id="epsShares" type="number" step="1" /></label>
+              <label>悲觀 PE<input id="epsPeBear" type="number" step="0.1" /></label>
+              <label>基準 PE<input id="epsPeBase" type="number" step="0.1" /></label>
+              <label>樂觀 PE<input id="epsPeBull" type="number" step="0.1" /></label>
+              <button type="submit">套用模型</button>
+            </form>
+            <div id="epsScenarios" class="scenario-grid"></div>
+            <div id="epsFormula" class="formula-box"></div>
+          </section>
           <section class="summary-grid" id="summary"></section>
 
           <section class="entry-panel" id="entryPanel">
