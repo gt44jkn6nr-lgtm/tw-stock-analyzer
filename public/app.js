@@ -775,8 +775,13 @@ function renderFinancial(data, fillInputs = false) {
     })
     .join("");
 
+  const shareDisclosure = data.actual?.shares_is_user_override
+    ? "流通股數目前使用使用者假設。"
+    : "反推股數僅供模型計算，可能與加權平均流通在外股數或期末發行股數不同。";
   formula.innerHTML = `
     <strong>EPS 試算公式</strong>
+    <p class="warning-text">此結果為模型試算，不是公司財測或投資建議。預估結果會因營收成長率、毛利率、費用率、稅率、股數及估值倍數假設而改變。</p>
+    <p class="warning-text">${escapeHtml(shareDisclosure)}</p>
     <p>${escapeHtml(model?.annual_eps_method || "")}</p>
     <ul>
       ${Object.values(model?.formula || {}).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
@@ -1154,7 +1159,7 @@ async function loadStock() {
   const status = document.getElementById("status");
   status.textContent = "讀取交易資料中";
   status.className = "status-pill";
-  const [stockData] = await Promise.all([fetchApi("/api/twse", { stockNo, months }), loadAiSummary(stockNo).catch((error) => {
+  const [stockResult] = await Promise.allSettled([fetchApi("/api/twse", { stockNo, months }), loadAiSummary(stockNo).catch((error) => {
     const el = document.getElementById("aiSummary");
     if (el) el.innerHTML = `<div class="empty">AI 摘要讀取失敗：${escapeHtml(error.message)}</div>`;
   }), loadFinancial(stockNo).catch((error) => {
@@ -1163,6 +1168,12 @@ async function loadStock() {
     const actuals = document.getElementById("financialActuals");
     if (actuals) actuals.innerHTML = `<div class="empty">財務資料暫時無法取得：${escapeHtml(error.message)}</div>`;
   })]);
+  if (stockResult.status === "rejected") {
+    status.textContent = `價格/K 線資料暫時無法取得：${stockResult.reason?.message || "未知錯誤"}`;
+    status.className = "status-pill stale";
+    return;
+  }
+  const stockData = stockResult.value;
   if (currentLoadedStock && currentLoadedStock !== stockNo) saveAnnotationsForStock(currentLoadedStock);
   currentLoadedStock = stockNo;
   loadAnnotationsForStock(stockNo);
