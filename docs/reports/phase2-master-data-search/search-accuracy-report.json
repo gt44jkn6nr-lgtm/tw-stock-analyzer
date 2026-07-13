@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-07-13T16:44:17.068Z",
+  "generatedAt": "2026-07-13T16:46:54.198Z",
   "caseCount": 220,
   "passedCount": 220,
   "failedCount": 0,
   "accuracy": 1,
-  "elapsedMs": 190.875,
-  "avgSearchMs": 0.8676,
+  "elapsedMs": 167.274,
+  "avgSearchMs": 0.7603,
   "criticalCases": [
     {
       "query": "TSMC",

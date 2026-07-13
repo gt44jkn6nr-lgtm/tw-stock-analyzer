@@ -477,6 +477,10 @@ function scoreSearchDoc(doc, q, matchType) {
   return score;
 }
 
+function searchTypePriority(type) {
+  return { stock: 1, topic: 2, product: 3, etf: 4, industry: 5, company: 6 }[type] || 9;
+}
+
 function refsForGrams(index, q) {
   const compact = q.replace(/\s+/g, "");
   const grams = new Set();
@@ -532,7 +536,7 @@ async function runSearch(query, { limit = 20, suggestions = false } = {}) {
   addCandidates(fuzzyRefs, "fuzzy");
 
   const results = [...candidates.values()]
-    .sort((a, b) => b.score - a.score || String(a.stockNo || a.name).localeCompare(String(b.stockNo || b.name)))
+    .sort((a, b) => b.score - a.score || searchTypePriority(a.type) - searchTypePriority(b.type) || String(a.stockNo || a.name).localeCompare(String(b.stockNo || b.name)))
     .slice(0, max)
     .map((item) => ({
       id: item.id,

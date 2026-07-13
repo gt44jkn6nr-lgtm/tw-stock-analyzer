@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "buildVersion": "phase2-master-data-search-1",
-  "generatedAt": "2026-07-13T16:44:01.692Z",
+  "generatedAt": "2026-07-13T16:46:40.946Z",
   "recordCount": {
     "total": 2181,
     "twse": 1083,
@@ -12,31 +12,31 @@
     "topic": 8,
     "company": 1
   },
-  "stale": true,
+  "stale": false,
   "sourceStatus": [
     {
       "name": "twse-listed",
       "url": "https://openapi.twse.com.tw/v1/opendata/t187ap03_L",
-      "ok": false,
-      "error": "fetch failed",
-      "fetchedAt": "2026-07-13T16:44:01.557Z",
-      "durationMs": 147
+      "ok": true,
+      "recordCount": 1089,
+      "fetchedAt": "2026-07-13T16:46:39.991Z",
+      "durationMs": 770
     },
     {
       "name": "tpex-listed",
       "url": "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap03_O",
-      "ok": false,
-      "error": "fetch failed",
-      "fetchedAt": "2026-07-13T16:44:01.562Z",
-      "durationMs": 25
+      "ok": true,
+      "recordCount": 891,
+      "fetchedAt": "2026-07-13T16:46:40.803Z",
+      "durationMs": 1438
     },
     {
       "name": "twse-etf",
       "url": "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL",
-      "ok": false,
-      "error": "fetch failed",
-      "fetchedAt": "2026-07-13T16:44:01.560Z",
-      "durationMs": 21
+      "ok": true,
+      "recordCount": 1369,
+      "fetchedAt": "2026-07-13T16:46:39.865Z",
+      "durationMs": 498
     }
   ],
   "checksum": "01f768def9c72407b1bdc54862bfdd1c01b729758bf20f961f5d6fedc1c07b22",
@@ -45,5 +45,5 @@
     "scope": "all",
     "note": "First version supports stock-only or etf-only refresh by reusing the unchanged section from the previous master file."
   },
-  "buildTimeMs": 312
+  "buildTimeMs": 1763
 }
