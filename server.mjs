@@ -2,11 +2,29 @@ import http from "node:http";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(__dirname, "public");
 const port = Number(process.env.PORT || 8787);
 const accessToken = process.env.ACCESS_TOKEN || "";
+const appVersion = "1.1.0-phase1-acceptance";
+const frontendVersion = "phase1-acceptance-1";
+const deployedAt = new Date().toISOString();
+const includedCommits = ["cd3171c", "90aa9b8"];
+const gitCommit =
+  process.env.RENDER_GIT_COMMIT ||
+  (() => {
+    try {
+      return execFileSync("git", ["rev-parse", "--short", "HEAD"], { cwd: __dirname, encoding: "utf8" }).trim();
+    } catch {
+      return "unknown";
+    }
+  })();
+const endpointCache = new Map();
+const rateWindowMs = 60 * 1000;
+const rateLimitMax = 240;
+const rateHits = new Map();
 
 const mime = {
   ".html": "text/html; charset=utf-8",
@@ -164,10 +182,112 @@ const sourceMeta = ({
   source_url,
 });
 
+function securityHeaders(extra = {}) {
+  return {
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-frame-options": "DENY",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "content-security-policy":
+      "default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; base-uri 'self'; form-action 'self'",
+    ...extra,
+  };
+}
+
+function responseMeta(data, fallback = {}) {
+  const meta = data?.metadata || data?.meta || fallback;
+  return {
+    data_source: meta.data_source || fallback.data_source || null,
+    published_at: meta.published_at || fallback.published_at || null,
+    fetched_at: meta.fetched_at || data?.fetchedAt || fallback.fetched_at || new Date().toISOString(),
+    reporting_period: meta.reporting_period || fallback.reporting_period || null,
+    is_estimated: Boolean(meta.is_estimated ?? fallback.is_estimated ?? false),
+    confidence: typeof meta.confidence === "number" ? meta.confidence : (fallback.confidence ?? null),
+    source_url: meta.source_url || fallback.source_url || null,
+  };
+}
+
+function sendJson(res, status, payload) {
+  res.writeHead(status, securityHeaders({ "content-type": "application/json; charset=utf-8" }));
+  res.end(JSON.stringify(payload));
+}
+
+function sendSuccess(res, data, status = 200, fallbackMeta = {}) {
+  const meta = responseMeta(data, fallbackMeta);
+  sendJson(res, status, {
+    success: true,
+    data,
+    error: null,
+    ...meta,
+  });
+}
+
+function sendError(res, status, message, fallbackMeta = {}) {
+  const meta = responseMeta(null, fallbackMeta);
+  console.error(JSON.stringify({ level: "error", status, message, fetched_at: meta.fetched_at }));
+  sendJson(res, status, {
+    success: false,
+    data: null,
+    error: message,
+    ...meta,
+  });
+}
+
+function cacheKey(pathname, searchParams) {
+  const key = new URLSearchParams(searchParams);
+  key.delete("key");
+  return `${pathname}?${key.toString()}`;
+}
+
+async function withCache(key, ttlMs, producer) {
+  const cached = endpointCache.get(key);
+  try {
+    const data = await producer();
+    endpointCache.set(key, { data, cachedAt: new Date().toISOString(), expiresAt: Date.now() + ttlMs });
+    return { data, cache: null };
+  } catch (error) {
+    if (cached?.data) {
+      return {
+        data: {
+          ...cached.data,
+          cacheNotice: `外部資料暫時無法取得，使用最近一次成功快取：${cached.cachedAt}`,
+        },
+        cache: cached,
+      };
+    }
+    throw error;
+  }
+}
+
+function classifyError(error) {
+  const message = String(error?.message || error || "Unknown error");
+  if (/AbortError|timeout/i.test(message)) return { status: 504, message: "外部資料源逾時，請稍後再試" };
+  if (/HTTP 429/.test(message)) return { status: 429, message: "外部資料源暫時限流，請稍後再試" };
+  if (/HTTP 5\d\d/.test(message)) return { status: 502, message: "外部資料源暫時異常，請稍後再試" };
+  if (/找不到|查無|不足|no data|not found/i.test(message)) return { status: 404, message: "查無此股票或資料不足，請確認股票代號" };
+  return { status: 502, message: "資料讀取失敗，已保留其他可用功能" };
+}
+
+function rateLimit(req, res) {
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket.remoteAddress || "unknown";
+  const now = Date.now();
+  const record = rateHits.get(ip) || { start: now, count: 0 };
+  if (now - record.start > rateWindowMs) {
+    record.start = now;
+    record.count = 0;
+  }
+  record.count += 1;
+  rateHits.set(ip, record);
+  if (record.count > rateLimitMax) {
+    sendError(res, 429, "請求過於頻繁，請稍後再試", sourceMeta({ data_source: "server rate limit", confidence: 1 }));
+    return false;
+  }
+  return true;
+}
+
 function assertAccess(url, res) {
   if (accessToken && url.searchParams.get("key") !== accessToken) {
-    res.writeHead(401, { "content-type": "application/json; charset=utf-8" });
-    res.end(JSON.stringify({ error: "Access key required" }));
+    sendError(res, 401, "Access key required", sourceMeta({ data_source: "server access control", confidence: 1 }));
     return false;
   }
   return true;
@@ -305,14 +425,21 @@ function summarize(rows, indicators) {
 }
 
 async function fetchJson(url) {
-  const response = await fetch(url, {
-    headers: {
-      "user-agent": "Mozilla/5.0 tw-stock-ai-research-platform",
-      accept: "application/json",
-    },
-  });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  return response.json();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12000);
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        "user-agent": "Mozilla/5.0 tw-stock-ai-research-platform",
+        accept: "application/json",
+      },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function fetchTwseMonth(stockNo, date) {
@@ -597,8 +724,58 @@ function technicalSnapshot(data) {
 }
 
 function buildScoreItem(label, score, basis, meta) {
-  return { label, score, basis, metadata: meta };
+  return {
+    label,
+    score,
+    included: typeof score === "number",
+    basis,
+    formula: null,
+    metadata: meta,
+  };
 }
+
+const scoringFormula = [
+  {
+    key: "revenue",
+    label: "營收",
+    formula: "若有最新月營收年增率 YoY：score = clamp(20, 95, round(50 + YoY * 100))；無 YoY 時不納入總分。",
+  },
+  {
+    key: "eps",
+    label: "EPS 與獲利",
+    formula: "第一階段尚未接入季財報 EPS；顯示尚無資料，不納入總分。",
+  },
+  {
+    key: "gross_margin",
+    label: "毛利率",
+    formula: "第一階段尚未接入財報毛利率；顯示尚無資料，不納入總分。",
+  },
+  {
+    key: "institutional",
+    label: "法人籌碼",
+    formula: "第一階段尚未接入三大法人買賣超；顯示尚無資料，不納入總分。",
+  },
+  {
+    key: "technical",
+    label: "技術面",
+    formula: "基準 50；收盤站上 MA20 +10、站上 MA60 +10、MACD 柱狀體為正 +10、RSI 50-75 +8、突破近 60 日高點且量能大於 1.2 倍 +12、RSI >= 80 -8、放量下跌 -8；最後限制在 0-100。",
+  },
+  {
+    key: "news_theme",
+    label: "新聞題材",
+    formula: "第一階段尚未接入新聞與法說資料；顯示尚無資料，不納入總分。",
+  },
+  {
+    key: "industry_cycle",
+    label: "產業景氣",
+    formula: "第一階段只有站內分類，沒有客觀景氣數據；顯示尚無資料，不納入總分。",
+  },
+  {
+    key: "valuation",
+    label: "估值",
+    formula: "第一階段尚未接入本益比、股價淨值比與同業估值；顯示尚無資料，不納入總分。",
+  },
+];
 
 function buildAiSummary(stockData, revenueRows) {
   const tech = technicalSnapshot(stockData);
@@ -621,12 +798,11 @@ function buildAiSummary(stockData, revenueRows) {
       });
 
   const revenueScore =
-    revenue?.latest?.yoy == null ? 50 : Math.max(20, Math.min(95, Math.round(50 + revenue.latest.yoy * 100)));
-  const industryScore = stockData.industry.includes("AI") || stockData.industry.includes("半導體") ? 70 : 55;
+    revenue?.latest?.yoy == null ? null : Math.max(20, Math.min(95, Math.round(50 + revenue.latest.yoy * 100)));
   const items = [
     buildScoreItem(
       "營收成長",
-      revenue ? revenueScore : null,
+      revenueScore,
       revenue
         ? `最新月營收 ${revenue.latest.reporting_period}，年增 ${revenue.latest.yoy == null ? "無去年同期" : `${(revenue.latest.yoy * 100).toFixed(1)}%`}，月增 ${revenue.latest.mom == null ? "無前月" : `${(revenue.latest.mom * 100).toFixed(1)}%`}`
         : "目前未取得月營收資料",
@@ -637,13 +813,19 @@ function buildAiSummary(stockData, revenueRows) {
     buildScoreItem("法人籌碼", null, "第一階段尚未接入三大法人買賣超資料源，分數不納入總分", sourceMeta({ data_source: "未接入", confidence: 0 })),
     buildScoreItem("技術面", tech.score, tech.reason, priceMeta),
     buildScoreItem("新聞與題材", null, "第一階段不抓新聞全文，避免把市場傳聞當成公告", sourceMeta({ data_source: "未接入", confidence: 0 })),
-    buildScoreItem("產業景氣", industryScore, `依目前站內產業分類：${stockData.industry}，屬題材熱度代理分數`, sourceMeta({ data_source: "站內產業分類", is_estimated: true, confidence: 0.45 })),
+    buildScoreItem("產業景氣", null, `目前只有站內產業分類：${stockData.industry}，尚未接入客觀產業景氣數據，分數不納入總分`, sourceMeta({ data_source: "站內產業分類", is_estimated: true, confidence: 0.25 })),
     buildScoreItem("估值", null, "第一階段尚未接入本益比與股價淨值比，分數不納入總分", sourceMeta({ data_source: "未接入", confidence: 0 })),
   ];
+  items.forEach((item, index) => {
+    item.formula = scoringFormula[index]?.formula || null;
+  });
   const scored = items.filter((item) => typeof item.score === "number");
   const total = scored.length ? Math.round(scored.reduce((sum, item) => sum + item.score, 0) / scored.length) : 0;
   const grade = total >= 80 ? "A" : total >= 65 ? "B" : total >= 50 ? "C" : "D";
   const trendStatus = tech.score >= 65 ? "偏多" : tech.score <= 40 ? "偏空" : "中性";
+  const completeness = { scored: scored.length, total: items.length, label: `${scored.length}/${items.length}` };
+  const confidence = scored.length >= 6 ? 0.75 : scored.length >= 4 ? 0.58 : scored.length >= 2 ? 0.42 : 0.25;
+  const confidenceLabel = confidence >= 0.7 ? "中高" : confidence >= 0.5 ? "中" : "中低";
   const noteworthy = [];
   if (revenue?.tags?.length) noteworthy.push(...revenue.tags);
   if (tech.breakout) noteworthy.push("技術面突破");
@@ -659,12 +841,16 @@ function buildAiSummary(stockData, revenueRows) {
     aiScore: total,
     grade,
     trendStatus,
+    scoreCoverage: completeness,
+    confidence,
+    confidenceLabel,
     oneLineConclusion: `${stockData.name} 目前 AI 綜合評分 ${total}，技術趨勢${trendStatus}，${noteworthy[0]}。`,
     noteworthy,
     risks,
     importantDates: revenue?.latest ? [`最近月營收資料期：${revenue.latest.reporting_period}`] : ["最近月營收資料期：尚未取得"],
     scoreItems: items,
-    metadata: sourceMeta({ data_source: "站內模型彙整", is_estimated: true, confidence: scored.length >= 3 ? 0.65 : 0.45 }),
+    scoringFormula,
+    metadata: sourceMeta({ data_source: "站內模型計算，基礎資料來源：TWSE／TPEx／FinMind", is_estimated: true, confidence }),
   };
 }
 
@@ -785,6 +971,19 @@ async function buildDashboard() {
     fetchedAt,
     lastUpdatedAt: rows.map((row) => row.dataDate).sort().at(-1) || null,
     dataStatus: rows.length ? "ok" : "partial",
+    appVersion,
+    gitCommit,
+    deployedAt,
+    frontendVersion,
+    includedCommits,
+    universeScope: {
+      label: "第一階段核心觀察池",
+      count: dashboardUniverse.length,
+      listedOrTpex: "上市與上櫃股票皆可能包含，依資料源可取得者納入",
+      excludes: "ETF、權證、期貨、選擇權、金融商品代理報價不納入股票排行",
+      rankingFormula: "AI 分數優先；營收異常依最新月營收 YoY 排序；技術突破依技術分數排序",
+      missingDataPolicy: "缺少交易或營收資料時排除該排行，不補假資料",
+    },
     noteworthyStocks: rows.sort((a, b) => b.aiScore - a.aiScore).slice(0, 8),
     revenueAnomalies,
     institutionalAnomalies: {
@@ -842,6 +1041,15 @@ async function buildRevenueRadar(filter = "all") {
   return {
     fetchedAt: new Date().toISOString(),
     filter,
+    universeScope: {
+      label: "第一階段核心觀察池，不是全市場排行",
+      scannedStocks: dashboardUniverse,
+      scannedCount: dashboardUniverse.length,
+      listedOrTpex: "上市與上櫃股票依 FinMind 月營收可取得資料納入",
+      excludes: "ETF、權證、期貨、選擇權、金融商品不納入",
+      rankingFormula: "符合篩選條件後，以最新月營收年增率 YoY 由高到低排序",
+      missingDataPolicy: "缺少月營收或股價資料時排除該條目，不產生假排行",
+    },
     filters: [
       "all",
       "月營收創歷史新高",
@@ -881,6 +1089,7 @@ async function serveStatic(req, res) {
   try {
     const body = await fs.readFile(filePath);
     const headers = {
+      ...securityHeaders(),
       "content-type": mime[path.extname(filePath)] || "application/octet-stream",
       "content-length": body.length,
     };
@@ -895,15 +1104,35 @@ async function serveStatic(req, res) {
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
+    if (!rateLimit(req, res)) return;
     if (url.pathname === "/api/health") {
-      res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify({ ok: true, fetchedAt: new Date().toISOString() }));
+      sendSuccess(res, { ok: true, fetchedAt: new Date().toISOString() }, 200, sourceMeta({ data_source: "server", confidence: 1 }));
+      return;
+    }
+    if (url.pathname === "/api/version") {
+      sendSuccess(
+        res,
+        {
+          appVersion,
+          gitCommit,
+          deployedAt,
+          apiDataUpdatedAt: new Date().toISOString(),
+          frontendVersion,
+          includedCommits,
+          render: {
+            serviceId: process.env.RENDER_SERVICE_ID || null,
+            serviceName: process.env.RENDER_SERVICE_NAME || null,
+            gitBranch: process.env.RENDER_GIT_BRANCH || null,
+          },
+        },
+        200,
+        sourceMeta({ data_source: "server runtime", reporting_period: gitCommit, is_estimated: false, confidence: 1 }),
+      );
       return;
     }
     if (url.pathname === "/api/universe") {
       if (!assertAccess(url, res)) return;
-      res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify({ fetchedAt: new Date().toISOString(), items: stockUniverse }));
+      sendSuccess(res, { fetchedAt: new Date().toISOString(), items: stockUniverse }, 200, sourceMeta({ data_source: "server stock universe", confidence: 0.7 }));
       return;
     }
     if (url.pathname === "/api/twse") {
@@ -911,43 +1140,38 @@ const server = http.createServer(async (req, res) => {
       const stockNo = url.searchParams.get("stockNo") || "2330";
       const months = Math.min(Math.max(Number(url.searchParams.get("months") || 12), 3), 36);
       const data = await fetchStock(stockNo, months);
-      res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify(data));
+      sendSuccess(res, data);
       return;
     }
     if (url.pathname === "/api/ai-summary") {
       if (!assertAccess(url, res)) return;
       const stockNo = url.searchParams.get("stockNo") || "2330";
-      const data = await buildAiSummaryResponse(stockNo);
-      res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify(data));
+      const { data } = await withCache(cacheKey(url.pathname, url.searchParams), 10 * 60 * 1000, () => buildAiSummaryResponse(stockNo));
+      sendSuccess(res, data);
       return;
     }
     if (url.pathname === "/api/dashboard") {
       if (!assertAccess(url, res)) return;
-      const data = await buildDashboard();
-      res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify(data));
+      const { data, cache } = await withCache(cacheKey(url.pathname, url.searchParams), 5 * 60 * 1000, () => buildDashboard());
+      sendSuccess(res, data, 200, cache ? sourceMeta({ data_source: "server cache", is_estimated: false, confidence: 0.5 }) : undefined);
       return;
     }
     if (url.pathname === "/api/revenue-radar") {
       if (!assertAccess(url, res)) return;
       const data = await buildRevenueRadar(url.searchParams.get("filter") || "all");
-      res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify(data));
+      sendSuccess(res, data);
       return;
     }
     if (url.pathname === "/api/industry-quotes") {
       if (!assertAccess(url, res)) return;
       const data = await fetchIndustryQuotes();
-      res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify(data));
+      sendSuccess(res, data, 200, sourceMeta({ data_source: "TWSE/TPEx/FinMind proxy quote calculation", is_estimated: true, confidence: 0.62 }));
       return;
     }
     await serveStatic(req, res);
   } catch (error) {
-    res.writeHead(500, { "content-type": "application/json; charset=utf-8" });
-    res.end(JSON.stringify({ error: String(error.message || error) }));
+    const classified = classifyError(error);
+    sendError(res, classified.status, classified.message, sourceMeta({ data_source: "server error handler", confidence: 0 }));
   }
 });
 

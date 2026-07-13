@@ -394,6 +394,12 @@ h3 {
   line-height: 1.55;
 }
 
+.coverage-line,
+.formula-line {
+  color: var(--orange);
+  font-size: 12px;
+}
+
 .score-ring {
   display: grid;
   place-items: center;
@@ -485,6 +491,18 @@ h3 {
   color: #cbd5e1;
   font-size: 12px;
   line-height: 1.45;
+}
+
+.source-link {
+  display: inline-flex;
+  margin-top: 6px;
+  color: #9cc8ff;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.source-link:hover {
+  text-decoration: underline;
 }
 
 .summary-grid {
@@ -854,6 +872,36 @@ canvas {
   line-height: 1.65;
 }
 
+.version-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0 8px;
+}
+
+.version-item {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+
+.version-item span,
+.version-item strong {
+  display: block;
+}
+
+.version-item span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.version-item strong {
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+}
+
 .up {
   color: var(--red);
 }
@@ -943,7 +991,8 @@ canvas {
   .watch-list,
   .quote-list,
   .alert-columns,
-  .theme-list {
+  .theme-list,
+  .version-grid {
     grid-template-columns: 1fr;
   }
 

@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>台股 AI 研究平台</title>
-    <link rel="stylesheet" href="./styles.css?v=phase1-ai-platform" />
+    <link rel="stylesheet" href="./styles.css?v=phase1-acceptance-1" />
   </head>
   <body>
     <div class="layout">
@@ -14,16 +14,12 @@
           <span>研究平台</span>
         </div>
         <nav class="side-nav">
-          <a href="#dashboard">首頁</a>
+          <a href="#dashboard">AI 首頁</a>
           <a href="#analysis">股票分析</a>
-          <a href="#marketRadar">市場雷達</a>
-          <a href="#revenueRadar">營收異常</a>
-          <a href="#industryCenter">產業題材</a>
-          <a href="#priceTracker">漲價追蹤</a>
+          <a href="#revenueRadar">營收雷達</a>
           <a href="#watchPanel">自選股</a>
           <a href="#alertCenter">提醒中心</a>
-          <a href="#aiQa">AI 問答</a>
-          <a href="#systemStatus">系統設定</a>
+          <a href="#priceTracker">產業報價</a>
         </nav>
       </aside>
 
@@ -279,10 +275,11 @@
 
         <section id="systemStatus" class="section panel placeholder-panel">
           <h2>系統設定與資料可信度</h2>
+          <div id="versionStatus" class="version-grid"></div>
           <p>每個新資料區塊已開始保留 data_source、published_at、fetched_at、reporting_period、is_estimated、confidence、source_url。</p>
         </section>
       </main>
     </div>
-    <script src="./app.js?v=phase1-ai-platform"></script>
+    <script src="./app.js?v=phase1-acceptance-1"></script>
   </body>
 </html>

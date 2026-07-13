@@ -92,9 +92,14 @@ function apiUrl(path, params = {}) {
 
 async function fetchApi(path, params) {
   const response = await fetch(apiUrl(path, params));
-  const data = await response.json();
-  if (!response.ok || data.error) throw new Error(data.error || "資料讀取失敗");
-  return data;
+  const payload = await response.json();
+  if (!response.ok || payload.success === false || payload.error) {
+    const error = new Error(payload.error || "資料讀取失敗");
+    error.payload = payload;
+    error.status = response.status;
+    throw error;
+  }
+  return payload.success === true ? payload.data : payload;
 }
 
 function loadJson(key, fallback) {
@@ -154,6 +159,11 @@ function dataBadge(meta) {
   if (meta.confidence === 0) return `<span class="data-badge stale">未接入</span>`;
   if (meta.is_estimated) return `<span class="data-badge estimate">模型預估</span>`;
   return `<span class="data-badge source">公告/來源資料</span>`;
+}
+
+function sourceLink(meta) {
+  if (!meta?.source_url) return "";
+  return `<a class="source-link" href="${escapeHtml(meta.source_url)}" target="_blank" rel="noopener noreferrer">原始來源</a>`;
 }
 
 function uniqueWatchlist(items) {
@@ -672,6 +682,7 @@ function renderAiSummary(data) {
         <span class="eyebrow">個股 AI 摘要</span>
         <h2>${escapeHtml(data.stockNo)} ${escapeHtml(data.name)}｜${escapeHtml(data.trendStatus)}</h2>
         <p>${escapeHtml(data.oneLineConclusion)}</p>
+        <p class="coverage-line">資料完整度：${escapeHtml(data.scoreCoverage?.label || "--")}｜可信度：${escapeHtml(data.confidenceLabel || "--")}｜實際納入 ${data.scoreCoverage?.scored ?? 0} 個評分項目</p>
       </div>
       <div class="score-ring ${gradeClass}">
         <strong>${data.aiScore}</strong>
@@ -703,7 +714,9 @@ function renderAiSummary(data) {
           </div>
           <span class="item-score">${item.score == null ? "未接入" : `${item.score} 分`}</span>
           <p>${escapeHtml(item.basis)}</p>
+          <p class="formula-line">${escapeHtml(item.formula || "")}</p>
           <small>${escapeHtml(metaLine(item.metadata))}</small>
+          ${sourceLink(item.metadata)}
         </div>
       `,
         )
@@ -730,7 +743,7 @@ function renderStockRows(items, container, emptyText = "目前沒有符合條件
         <span>${formatNumber(item.price)}</span>
         <span class="${trendClass(item.changePct || 0)}">${formatPct(item.changePct)}</span>
         <span><b>${item.aiScore ?? "--"}</b></span>
-        <span>${escapeHtml(item.reason || "--")}<small>${escapeHtml(item.risk || "")}</small></span>
+        <span>${escapeHtml(item.reason || "--")}<small>${escapeHtml(item.risk || "")}</small><small>${escapeHtml(metaLine(item.metadata))}</small></span>
         <span>${escapeHtml(item.dataDate || "--")}</span>
       </button>
     `,
@@ -799,6 +812,24 @@ function renderDashboard(data) {
   renderDashboardAlerts();
 }
 
+function renderVersionStatus(data) {
+  const el = document.getElementById("versionStatus");
+  if (!el) return;
+  el.innerHTML = `
+    <div class="version-item"><span>App version</span><strong>${escapeHtml(data.appVersion)}</strong></div>
+    <div class="version-item"><span>Git commit hash</span><strong>${escapeHtml(data.gitCommit)}</strong></div>
+    <div class="version-item"><span>部署時間</span><strong>${formatDateTime(data.deployedAt)}</strong></div>
+    <div class="version-item"><span>API 資料更新時間</span><strong>${formatDateTime(data.apiDataUpdatedAt)}</strong></div>
+    <div class="version-item"><span>前端檔案版本</span><strong>${escapeHtml(data.frontendVersion)}</strong></div>
+    <div class="version-item"><span>必含提交</span><strong>${escapeHtml((data.includedCommits || []).join(", "))}</strong></div>
+  `;
+}
+
+async function loadVersionStatus() {
+  const data = await fetchApi("/api/version");
+  renderVersionStatus(data);
+}
+
 async function loadDashboard() {
   const meta = document.getElementById("dashboardMeta");
   if (meta) meta.textContent = "正在讀取今日市場資料";
@@ -811,7 +842,7 @@ function renderRevenueRadar(data) {
   if (select && !select.options.length) {
     select.innerHTML = data.filters.map((filter) => `<option value="${escapeHtml(filter)}">${filter === "all" ? "全部條件" : escapeHtml(filter)}</option>`).join("");
   }
-  document.getElementById("revenueRadarMeta").textContent = `更新 ${formatDateTime(data.fetchedAt)}｜${data.rows.length} 筆`;
+  document.getElementById("revenueRadarMeta").textContent = `更新 ${formatDateTime(data.fetchedAt)}｜${data.rows.length} 筆｜${data.universeScope?.label || ""}｜掃描 ${data.universeScope?.scannedCount || 0} 檔`;
   const list = document.getElementById("revenueRadarList");
   if (!data.rows.length) {
     list.innerHTML = `<div class="empty">目前沒有符合條件的營收異常資料。</div>`;
@@ -858,6 +889,7 @@ function renderIndustryQuotes(data) {
           <span>價格 ${formatNumber(item.price)}｜<b class="${trendClass(item.change)}">${formatNumber(item.change)} / ${formatPct(item.changePct)}</b></span>
           <span>${escapeHtml(item.date)}｜代理指標</span>
           ${dataBadge(item.metadata)}
+          ${sourceLink(item.metadata)}
           <button type="button" data-quote-stock="${escapeHtml(item.symbol)}">看 K 線</button>
         </div>
       `;
@@ -1183,6 +1215,10 @@ loadRevenueRadar().catch((error) => {
 });
 loadIndustryQuotes().catch((error) => {
   document.getElementById("quoteStatus").textContent = error.message;
+});
+loadVersionStatus().catch((error) => {
+  const el = document.getElementById("versionStatus");
+  if (el) el.innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
 });
 loadStock().catch((error) => {
   const status = document.getElementById("status");
