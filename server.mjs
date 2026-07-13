@@ -39,9 +39,12 @@ const finMindUrl = "https://api.finmindtrade.com/api/v4/data";
 const twseValuationUrl = "https://openapi.twse.com.tw/v1/exchangeReport/BWIBBU_ALL";
 const twseRevenueUrl = "https://openapi.twse.com.tw/v1/opendata/t187ap05_L";
 const twseIncomeUrl = "https://openapi.twse.com.tw/v1/opendata/t187ap14_L";
+const twseMaterialInfoUrl = "https://openapi.twse.com.tw/v1/opendata/t187ap04_L";
+const twseShareholderUrl = "https://openapi.twse.com.tw/v1/opendata/t187ap38_L";
 const tpexValuationUrl = "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_peratio_analysis";
 const tpexRevenueUrl = "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap05_O";
 const tpexIncomeUrl = "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap14_O";
+const tpexMaterialInfoUrl = "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap04_O";
 
 const stockUniverse = [
   { stockNo: "2330", name: "台積電", industry: "半導體 / 晶圓代工", marketCap: "large" },
@@ -283,6 +286,7 @@ async function withCache(key, ttlMs, producer) {
 
 function classifyError(error) {
   const message = String(error?.message || error || "Unknown error");
+  if (error?.statusCode) return { status: error.statusCode, message };
   if (/AbortError|timeout/i.test(message)) return { status: 504, message: "外部資料源逾時，請稍後再試" };
   if (/HTTP 429/.test(message)) return { status: 429, message: "外部資料源暫時限流，請稍後再試" };
   if (/HTTP 5\d\d/.test(message)) return { status: 502, message: "外部資料源暫時異常，請稍後再試" };
@@ -490,6 +494,7 @@ async function fetchFinMind(stockNo, months) {
 }
 
 let openDataCache = new Map();
+const sourceFetchCache = new Map();
 
 async function fetchOpenData(url, ttlMs = 10 * 60 * 1000) {
   const cached = openDataCache.get(url);
@@ -1184,6 +1189,542 @@ function analyzeRevenue(rows) {
   return { latest, tags, ytdYoy };
 }
 
+const timelineTypes = new Set(["all", "material", "revenue", "financial", "shareholder", "conference", "news"]);
+const timelineMaxRangeDays = 366 * 3;
+const timelineTtlMs = 20 * 60 * 1000;
+const trustedSourceHosts = new Set(["openapi.twse.com.tw", "www.tpex.org.tw", "api.finmindtrade.com"]);
+
+function safeSourceUrl(value) {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || !trustedSourceHosts.has(url.hostname)) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function rocDate(value) {
+  const text = String(value || "").replace(/[^\d]/g, "");
+  if (!/^\d{5,7}$/.test(text)) return null;
+  const year = Number(text.slice(0, 3)) + 1911;
+  const month = text.slice(3, 5) || "01";
+  const day = text.slice(5, 7) || "01";
+  return `${year}-${month}-${day}`;
+}
+
+function rocDateTime(dateValue, timeValue) {
+  const date = rocDate(dateValue);
+  if (!date) return null;
+  const text = String(timeValue || "").replace(/[^\d]/g, "").padStart(6, "0").slice(0, 6);
+  return `${date}T${text.slice(0, 2)}:${text.slice(2, 4)}:${text.slice(4, 6)}+08:00`;
+}
+
+function dateInRange(dateValue, from, to) {
+  if (!dateValue) return true;
+  return dateValue >= from && dateValue <= to;
+}
+
+function truncateText(value, max = 420) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  return text.length > max ? `${text.slice(0, max)}...` : text;
+}
+
+function stableHash(value) {
+  let hash = 2166136261;
+  for (const char of String(value || "")) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16);
+}
+
+function normalizeTitle(value) {
+  return String(value || "").replace(/\s+/g, " ").replace(/[<>]/g, "").trim();
+}
+
+function classifyTimelineText(title, detail = "") {
+  const text = `${title || ""} ${detail || ""}`;
+  const rules = [];
+  const negativeWords = ["未", "無", "否認", "延後", "終止", "取消", "尚未", "澄清", "虧損", "減損", "下修", "處分", "違反", "訴訟"];
+  const cautionWords = ["不影響", "預計", "可能", "傳聞", "待確認"];
+  const positiveWords = ["創新高", "成長", "通過", "取得", "認證", "核准", "擴產", "量產", "新產品", "客戶", "獲利"];
+  const negative = negativeWords.filter((word) => text.includes(word));
+  const positive = positiveWords.filter((word) => text.includes(word));
+  const caution = cautionWords.filter((word) => text.includes(word));
+  if (positive.length) rules.push(`positive_keywords:${positive.join(",")}`);
+  if (negative.length) rules.push(`negative_or_negation:${negative.join(",")}`);
+  if (caution.length) rules.push(`uncertainty_or_limited_impact:${caution.join(",")}`);
+  let sentiment = "neutral";
+  if (positive.length && negative.length) sentiment = "mixed";
+  else if (negative.length) sentiment = "negative";
+  else if (positive.length && caution.length) sentiment = "unknown";
+  else if (positive.length) sentiment = "positive";
+  else if (caution.length) sentiment = "unknown";
+  const confidence = sentiment === "neutral" || sentiment === "unknown" ? 0.45 : negative.length && positive.length ? 0.62 : 0.68;
+  const basis = [];
+  if (sentiment === "neutral") basis.push("程序性或例行揭露，未辨識出明確營運方向訊號");
+  if (sentiment === "unknown") basis.push("內容含預計、可能、傳聞、澄清或不影響等語句，影響待確認");
+  if (sentiment === "mixed") basis.push("同一事件同時包含正面與負面或否定訊號");
+  if (sentiment === "positive") basis.push("內容含成長、認證、核准、量產或創高等正面訊號，未見否定詞");
+  if (sentiment === "negative") basis.push("內容含延後、終止、取消、虧損、違規、訴訟或否定訊號");
+  return { sentiment, sentimentConfidence: confidence, sentimentBasis: basis, classificationRules: rules };
+}
+
+function timelineEvent({
+  market,
+  stockNo,
+  companyName,
+  eventType,
+  sourceKind = "official",
+  sourceName,
+  sourceUrl,
+  title,
+  sourceSummary = null,
+  normalizedSummary = null,
+  rawExcerpt = null,
+  eventDate = null,
+  announcedAt = null,
+  publishedAt = null,
+  reportingPeriod = null,
+  officialSequenceNumber = null,
+  computedMetrics = null,
+  confidence = 0.85,
+  isCached = false,
+  cacheFetchedAt = null,
+  modelInterpretation = null,
+  relatedSources = [],
+}) {
+  const safeTitle = normalizeTitle(title);
+  const analysis = classifyTimelineText(safeTitle, `${sourceSummary || ""} ${normalizedSummary || ""}`);
+  const idBase = [market, stockNo, eventType, reportingPeriod, officialSequenceNumber, eventDate, announcedAt, safeTitle].filter(Boolean).join("|");
+  return {
+    id: `${market || "TW"}-${stockNo}-${eventType}-${stableHash(idBase)}`,
+    market,
+    stockNo,
+    companyName,
+    eventType,
+    sourceKind,
+    sourceName,
+    sourceUrl: safeSourceUrl(sourceUrl),
+    title: safeTitle,
+    sourceSummary: truncateText(sourceSummary, 700),
+    normalizedSummary: truncateText(normalizedSummary, 700),
+    modelInterpretation: modelInterpretation || {
+      summary: analysis.sentimentConfidence < 0.5 ? "影響待確認，需等待後續公告或財報資料驗證。" : "站內規則模型依公告文字初步分類，非投資建議。",
+      is_estimated: true,
+      confidence: analysis.sentimentConfidence,
+    },
+    rawExcerpt: truncateText(rawExcerpt, 420),
+    eventDate,
+    announcedAt,
+    publishedAt,
+    fetchedAt: new Date().toISOString(),
+    eventDateSource: eventDate ? "official_field" : null,
+    eventDateIsInferred: false,
+    reportingPeriod,
+    officialSequenceNumber,
+    computedMetrics,
+    relatedSources,
+    isCached,
+    cacheFetchedAt,
+    confidence,
+    ...analysis,
+  };
+}
+
+async function fetchOpenDataWithStatus(config, options = {}) {
+  const cacheKeyValue = config.url;
+  const cached = sourceFetchCache.get(cacheKeyValue);
+  const now = Date.now();
+  const fixture = options.fixture;
+  if (cached && cached.expiresAt > now && fixture !== "timeout") {
+    return { rows: cached.rows, status: { ...cached.status, fromCache: true, stale: false } };
+  }
+  try {
+    if (fixture === "timeout" && config.fixtureTarget) throw new Error("AbortError: timeline fixture timeout");
+    let rows = null;
+    let lastError = null;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        rows = await fetchJson(config.url);
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (!Array.isArray(rows)) throw new Error(`OpenAPI format changed: ${config.url}`);
+    const status = {
+      key: config.key,
+      sourceName: config.sourceName,
+      ok: true,
+      stale: false,
+      fromCache: false,
+      fetchedAt: new Date().toISOString(),
+      lastSuccessfulFetch: new Date().toISOString(),
+      message: "ok",
+    };
+    sourceFetchCache.set(cacheKeyValue, { rows, status, expiresAt: now + timelineTtlMs });
+    return { rows, status };
+  } catch (error) {
+    if (cached) {
+      return {
+        rows: cached.rows,
+        status: {
+          ...cached.status,
+          ok: false,
+          stale: true,
+          fromCache: true,
+          message: `目前顯示快取資料：${cached.status.lastSuccessfulFetch}`,
+          error: String(error.message || error),
+        },
+      };
+    }
+    return {
+      rows: [],
+      status: {
+        key: config.key,
+        sourceName: config.sourceName,
+        ok: false,
+        stale: false,
+        fromCache: false,
+        fetchedAt: new Date().toISOString(),
+        lastSuccessfulFetch: null,
+        message: "來源暫時無資料",
+        error: String(error.message || error),
+      },
+    };
+  }
+}
+
+function dedupeTimelineEvents(events) {
+  const map = new Map();
+  const sourceRank = { official: 4, company: 3, news: 2, model: 1 };
+  for (const event of events) {
+    const key = [
+      event.market,
+      event.stockNo,
+      event.eventType,
+      event.reportingPeriod || "",
+      event.officialSequenceNumber || "",
+      event.eventDate || event.announcedAt?.slice(0, 10) || event.publishedAt?.slice(0, 10) || "",
+      stableHash(event.title),
+    ].join("|");
+    const existing = map.get(key);
+    if (!existing) {
+      map.set(key, event);
+      continue;
+    }
+    const keep = (sourceRank[event.sourceKind] || 0) > (sourceRank[existing.sourceKind] || 0) ? event : existing;
+    const merge = keep === event ? existing : event;
+    keep.relatedSources = [
+      ...(keep.relatedSources || []),
+      {
+        sourceKind: merge.sourceKind,
+        sourceName: merge.sourceName,
+        sourceUrl: merge.sourceUrl,
+        title: merge.title,
+        publishedAt: merge.publishedAt,
+      },
+      ...(merge.relatedSources || []),
+    ];
+    map.set(key, keep);
+  }
+  return [...map.values()];
+}
+
+function parseTimelineParams(url) {
+  const to = url.searchParams.get("to") || new Date().toISOString().slice(0, 10);
+  const from = url.searchParams.get("from") || addMonths(new Date(`${to}T00:00:00+08:00`), -12).toISOString().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+    throw Object.assign(new Error("from/to must be YYYY-MM-DD"), { statusCode: 400 });
+  }
+  if (from > to) throw Object.assign(new Error("from 不得晚於 to"), { statusCode: 400 });
+  const rangeDays = (new Date(`${to}T00:00:00Z`) - new Date(`${from}T00:00:00Z`)) / 86400000;
+  if (rangeDays > timelineMaxRangeDays) throw Object.assign(new Error("查詢區間第一版最多 3 年"), { statusCode: 400 });
+  const typesRaw = (url.searchParams.get("types") || "all").split(",").map((item) => item.trim()).filter(Boolean);
+  const invalid = typesRaw.filter((item) => !timelineTypes.has(item));
+  if (invalid.length) throw Object.assign(new Error(`非白名單 types: ${invalid.join(",")}`), { statusCode: 400 });
+  const types = typesRaw.includes("all") ? new Set(["material", "revenue", "financial", "shareholder", "conference", "news"]) : new Set(typesRaw);
+  return { from, to, types };
+}
+
+function materialEventsFromRows(rows, config, stockNo, from, to, status) {
+  return rows
+    .filter((row) => String(row[config.codeKey] || "").trim() === stockNo)
+    .map((row) => {
+      const eventDate = rocDate(row["事實發生日"]);
+      const announcedAt = rocDateTime(row["發言日期"], row["發言時間"]);
+      const publishedAt = rocDate(row["出表日期"] || row.Date);
+      if (!dateInRange(eventDate || announcedAt?.slice(0, 10) || publishedAt, from, to)) return null;
+      return timelineEvent({
+        market: config.market,
+        stockNo,
+        companyName: row[config.nameKey],
+        eventType: "material",
+        sourceName: config.sourceName,
+        sourceUrl: config.url,
+        title: row["主旨 "] || row["主旨"],
+        sourceSummary: row["主旨 "] || row["主旨"],
+        normalizedSummary: `符合條款：${row["符合條款"] || "--"}`,
+        rawExcerpt: row["說明"],
+        eventDate,
+        announcedAt,
+        publishedAt,
+        officialSequenceNumber: [row["符合條款"], row["發言日期"], row["發言時間"]].filter(Boolean).join("-"),
+        confidence: 0.92,
+        isCached: status.fromCache,
+        cacheFetchedAt: status.lastSuccessfulFetch,
+      });
+    })
+    .filter(Boolean);
+}
+
+function revenueEventFromRows(rows, config, stockNo, from, to, status, historyRows = []) {
+  const row = rows.find((item) => String(item["公司代號"] || "").trim() === stockNo);
+  if (!row) return null;
+  const reportingPeriod = parseRocPeriod(row["資料年月"]);
+  const publishedAt = rocDate(row["出表日期"]);
+  if (!dateInRange(`${reportingPeriod || publishedAt || ""}-01`.slice(0, 10), from, to)) return null;
+  const monthlyRevenue = parseNumber(row["營業收入-當月營收"]);
+  const sortedHistory = historyRows.slice().sort((a, b) => a.reporting_period.localeCompare(b.reporting_period));
+  const currentPeriod = reportingPeriod;
+  const current = sortedHistory.find((item) => item.reporting_period === currentPeriod);
+  const valuesUntilCurrent = sortedHistory.filter((item) => item.reporting_period <= currentPeriod);
+  const maxWindow = (months) => {
+    const values = valuesUntilCurrent.slice(-months).map((item) => item.revenue);
+    return values.length ? Math.max(...values) : null;
+  };
+  const maxAll = valuesUntilCurrent.length ? Math.max(...valuesUntilCurrent.map((item) => item.revenue)) : null;
+  const metrics = {
+    data_source: "站內計算，基礎資料來源：TWSE／TPEx OpenAPI 與 FinMind TaiwanStockMonthRevenue",
+    monthlyRevenue,
+    mom: parsePercentNumber(row["營業收入-上月比較增減(%)"]),
+    yoy: parsePercentNumber(row["營業收入-去年同月增減(%)"]),
+    cumulativeYoy: parsePercentNumber(row["累計營業收入-前期比較增減(%)"]),
+    isAllTimeHigh: maxAll == null || monthlyRevenue == null ? null : monthlyRevenue >= maxAll,
+    isHigh12m: maxWindow(12) == null || monthlyRevenue == null ? null : monthlyRevenue >= maxWindow(12),
+    isHigh24m: maxWindow(24) == null || monthlyRevenue == null ? null : monthlyRevenue >= maxWindow(24),
+    isHigh36m: maxWindow(36) == null || monthlyRevenue == null ? null : monthlyRevenue >= maxWindow(36),
+    comparisonStatus: current ? "computed" : "history_missing",
+  };
+  return timelineEvent({
+    market: config.market,
+    stockNo,
+    companyName: row["公司名稱"],
+    eventType: "revenue",
+    sourceName: config.sourceName,
+    sourceUrl: config.url,
+    title: `${row["公司名稱"] || stockNo} ${reportingPeriod || ""} 月營收公告`,
+    sourceSummary: row["備註"] && row["備註"] !== "-" ? row["備註"] : null,
+    normalizedSummary: `月營收 ${monthlyRevenue ?? "--"} 千元，MoM ${row["營業收入-上月比較增減(%)"] || "--"}%，YoY ${row["營業收入-去年同月增減(%)"] || "--"}%`,
+    rawExcerpt: row["備註"],
+    eventDate: null,
+    announcedAt: publishedAt ? `${publishedAt}T00:00:00+08:00` : null,
+    publishedAt,
+    reportingPeriod,
+    officialSequenceNumber: reportingPeriod,
+    computedMetrics: metrics,
+    confidence: 0.9,
+    isCached: status.fromCache,
+    cacheFetchedAt: status.lastSuccessfulFetch,
+  });
+}
+
+function financialEventFromData(data, stockNo, from, to) {
+  const profit = data?.actual?.profitability;
+  if (!profit?.metadata?.reporting_period) return null;
+  const reportingPeriod = profit.metadata.reporting_period;
+  const publishedAt = profit.metadata.published_at;
+  const periodDate = reportingPeriod.replace("Q1", "-03-31").replace("Q2", "-06-30").replace("Q3", "-09-30").replace("Q4", "-12-31");
+  if (!dateInRange(publishedAt || periodDate, from, to)) return null;
+  return timelineEvent({
+    market: data.market || null,
+    stockNo,
+    companyName: data.name,
+    eventType: "financial",
+    sourceName: profit.metadata.data_source,
+    sourceUrl: profit.metadata.source_url,
+    title: `${data.name || stockNo} ${reportingPeriod} 財報資料`,
+    sourceSummary: null,
+    normalizedSummary: `EPS ${profit.eps ?? "--"}，營益率 ${profit.operatingMargin == null ? "--" : (profit.operatingMargin * 100).toFixed(1) + "%"}，淨利率 ${profit.netMargin == null ? "--" : (profit.netMargin * 100).toFixed(1) + "%"}`,
+    eventDate: null,
+    announcedAt: publishedAt ? `${publishedAt}T00:00:00+08:00` : null,
+    publishedAt,
+    reportingPeriod,
+    officialSequenceNumber: reportingPeriod,
+    computedMetrics: {
+      data_source: "站內整合，基礎資料來源：TWSE／TPEx OpenAPI",
+      revenue: profit.quarterRevenue ?? null,
+      grossMargin: profit.grossMargin ?? null,
+      operatingMargin: profit.operatingMargin ?? null,
+      netMargin: profit.netMargin ?? null,
+      eps: profit.eps ?? null,
+      reportingPeriod,
+    },
+    confidence: 0.88,
+  });
+}
+
+function shareholderEventsFromRows(rows, config, stockNo, from, to, status) {
+  return rows
+    .filter((row) => String(row["公司代號"] || "").trim() === stockNo)
+    .map((row) => {
+      const meetingDate = rocDate(row["股東常(臨時)會日期-日期"]);
+      const announcedDate = rocDate(row["公告日期"]);
+      if (!dateInRange(meetingDate || announcedDate, from, to)) return null;
+      return timelineEvent({
+        market: config.market,
+        stockNo,
+        companyName: row["公司名稱"],
+        eventType: "shareholder",
+        sourceName: config.sourceName,
+        sourceUrl: config.url,
+        title: `${row["公司名稱"] || stockNo} 股東${row["股東常(臨時)會日期-常或臨時"] || ""}公告`,
+        sourceSummary: null,
+        normalizedSummary: `股東會日期：${meetingDate || "--"}，停止過戶：${rocDate(row["停止過戶起訖日期-起"]) || "--"} 至 ${rocDate(row["停止過戶起訖日期-訖"]) || "--"}`,
+        eventDate: meetingDate,
+        announcedAt: announcedDate ? rocDateTime(row["公告日期"], row["公告時間"]) : null,
+        publishedAt: rocDate(row["出表日期"]),
+        officialSequenceNumber: [meetingDate, row["種類"]].filter(Boolean).join("-"),
+        confidence: 0.86,
+        isCached: status.fromCache,
+        cacheFetchedAt: status.lastSuccessfulFetch,
+      });
+    })
+    .filter(Boolean);
+}
+
+function applyTimelineFixtures(events, fixture, stockNo) {
+  if (process.env.ENABLE_TEST_FIXTURES !== "1") return events;
+  if (fixture === "duplicate" && events[0]) return [...events, { ...events[0], id: `${events[0].id}-duplicate` }];
+  if (fixture === "related" && events[0]) {
+    return [
+      ...events,
+      {
+        ...events[0],
+        id: `${events[0].id}-news`,
+        sourceKind: "news",
+        sourceName: "fixture news",
+        sourceUrl: null,
+      },
+    ];
+  }
+  if (fixture === "negation") {
+    return [
+      timelineEvent({
+        market: "fixture",
+        stockNo,
+        companyName: stockNo,
+        eventType: "material",
+        sourceName: "fixture",
+        sourceUrl: twseMaterialInfoUrl,
+        title: "澄清未取得客戶認證且擴產延後",
+        sourceSummary: "測試否定詞分類",
+        eventDate: new Date().toISOString().slice(0, 10),
+        confidence: 1,
+      }),
+    ];
+  }
+  if (fixture === "mixed") {
+    return [
+      timelineEvent({
+        market: "fixture",
+        stockNo,
+        companyName: stockNo,
+        eventType: "revenue",
+        sourceName: "fixture",
+        sourceUrl: twseRevenueUrl,
+        title: "月營收創新高但虧損擴大",
+        sourceSummary: "測試正負訊號並存",
+        eventDate: new Date().toISOString().slice(0, 10),
+        confidence: 1,
+      }),
+    ];
+  }
+  return events;
+}
+
+async function buildTimeline(stockNo, params, options = {}) {
+  const sourceStatus = [];
+  const events = [];
+  const sourceConfigs = [
+    { key: "twse-material", market: "TWSE", url: twseMaterialInfoUrl, sourceName: "TWSE OpenAPI t187ap04_L", codeKey: "公司代號", nameKey: "公司名稱", fixtureTarget: true },
+    { key: "tpex-material", market: "TPEx", url: tpexMaterialInfoUrl, sourceName: "TPEx OpenAPI mopsfin_t187ap04_O", codeKey: "SecuritiesCompanyCode", nameKey: "CompanyName", fixtureTarget: true },
+    { key: "twse-revenue", market: "TWSE", url: twseRevenueUrl, sourceName: "TWSE OpenAPI t187ap05_L" },
+    { key: "tpex-revenue", market: "TPEx", url: tpexRevenueUrl, sourceName: "TPEx OpenAPI mopsfin_t187ap05_O" },
+    { key: "twse-shareholder", market: "TWSE", url: twseShareholderUrl, sourceName: "TWSE OpenAPI t187ap38_L" },
+  ];
+
+  const historyRows = await fetchRevenue(stockNo, 4).catch(() => []);
+  if (params.types.has("material")) {
+    for (const config of sourceConfigs.filter((item) => item.key.includes("material"))) {
+      const { rows, status } = await fetchOpenDataWithStatus(config, options);
+      sourceStatus.push(status);
+      events.push(...materialEventsFromRows(rows, config, stockNo, params.from, params.to, status));
+    }
+  }
+  if (params.types.has("revenue")) {
+    for (const config of sourceConfigs.filter((item) => item.key.includes("revenue"))) {
+      const { rows, status } = await fetchOpenDataWithStatus(config, options);
+      sourceStatus.push(status);
+      const event = revenueEventFromRows(rows, config, stockNo, params.from, params.to, status, historyRows);
+      if (event) events.push(event);
+    }
+  }
+  if (params.types.has("financial")) {
+    const financial = await buildFinancialSummary(stockNo).catch((error) => {
+      sourceStatus.push({ key: "financial", sourceName: "TWSE/TPEx financial OpenAPI", ok: false, stale: false, message: error.message });
+      return null;
+    });
+    const event = financialEventFromData(financial, stockNo, params.from, params.to);
+    if (event) events.push(event);
+  }
+  if (params.types.has("shareholder")) {
+    const config = sourceConfigs.find((item) => item.key === "twse-shareholder");
+    const { rows, status } = await fetchOpenDataWithStatus(config, options);
+    sourceStatus.push(status);
+    events.push(...shareholderEventsFromRows(rows, config, stockNo, params.from, params.to, status));
+    sourceStatus.push({ key: "tpex-shareholder", sourceName: "TPEx shareholder meeting OpenAPI", ok: false, stale: false, message: "第一版尚未確認穩定官方端點，未接入" });
+  }
+  if (params.types.has("conference")) {
+    sourceStatus.push({ key: "conference", sourceName: "Investor conference source", ok: false, stale: false, message: "第一版保留可插拔介面，尚未接入穩定官方資料源" });
+  }
+  if (params.types.has("news")) {
+    sourceStatus.push({ key: "news", sourceName: "External news source", ok: false, stale: false, message: "第一版保留可插拔介面，未接入外部新聞正式資料" });
+  }
+
+  const fixtureEvents = applyTimelineFixtures(events, options.fixture, stockNo);
+  const deduped = dedupeTimelineEvents(fixtureEvents).sort((a, b) => {
+    const ad = a.eventDate || a.announcedAt || a.publishedAt || "";
+    const bd = b.eventDate || b.announcedAt || b.publishedAt || "";
+    return bd.localeCompare(ad);
+  });
+  const companyName = deduped.find((item) => item.companyName)?.companyName || stockMap.get(stockNo)?.name || stockNo;
+  const staleCount = sourceStatus.filter((item) => item.stale).length;
+  return {
+    stockNo,
+    companyName,
+    from: params.from,
+    to: params.to,
+    items: deduped,
+    sourceStatus,
+    coverage: {
+      official: sourceStatus.some((item) => item.ok || item.fromCache),
+      company: false,
+      news: false,
+    },
+    cacheNotice: staleCount ? `目前顯示快取資料，${staleCount} 個來源使用最近一次成功快取。` : null,
+    metadata: sourceMeta({
+      data_source: "TWSE／TPEx OpenAPI + station timeline model",
+      reporting_period: `${params.from}..${params.to}`,
+      is_estimated: false,
+      confidence: sourceStatus.some((item) => item.ok || item.fromCache) ? 0.84 : 0.25,
+      source_url: null,
+    }),
+  };
+}
+
 function average(values) {
   const clean = values.filter((value) => value != null && Number.isFinite(value));
   return clean.length ? clean.reduce((sum, value) => sum + value, 0) / clean.length : null;
@@ -1674,6 +2215,36 @@ const server = http.createServer(async (req, res) => {
       Object.keys(overrides).forEach((key) => overrides[key] == null || (typeof overrides[key] === "number" && Number.isNaN(overrides[key])) ? delete overrides[key] : null);
       const { data } = await withCache(cacheKey(url.pathname, url.searchParams), 10 * 60 * 1000, () => buildFinancialSummary(stockNo, overrides));
       sendSuccess(res, data);
+      return;
+    }
+    if (url.pathname === "/api/timeline") {
+      if (!assertAccess(url, res)) return;
+      const stockNo = url.searchParams.get("stockNo") || "2330";
+      const params = parseTimelineParams(url);
+      await fetchStock(stockNo, 3);
+      const fixture = process.env.ENABLE_TEST_FIXTURES === "1" ? url.searchParams.get("fixture") : null;
+      const { data } = await withCache(cacheKey(url.pathname, url.searchParams), 10 * 60 * 1000, () => buildTimeline(stockNo, params, { fixture }));
+      sendSuccess(res, data);
+      return;
+    }
+    if (url.pathname === "/api/timeline/sources") {
+      if (!assertAccess(url, res)) return;
+      sendSuccess(
+        res,
+        {
+          fetchedAt: new Date().toISOString(),
+          sources: [
+            { key: "twse-material", name: "TWSE OpenAPI t187ap04_L", url: twseMaterialInfoUrl, status: sourceFetchCache.get(twseMaterialInfoUrl)?.status || null },
+            { key: "tpex-material", name: "TPEx OpenAPI mopsfin_t187ap04_O", url: tpexMaterialInfoUrl, status: sourceFetchCache.get(tpexMaterialInfoUrl)?.status || null },
+            { key: "twse-revenue", name: "TWSE OpenAPI t187ap05_L", url: twseRevenueUrl, status: sourceFetchCache.get(twseRevenueUrl)?.status || null },
+            { key: "tpex-revenue", name: "TPEx OpenAPI mopsfin_t187ap05_O", url: tpexRevenueUrl, status: sourceFetchCache.get(tpexRevenueUrl)?.status || null },
+            { key: "twse-shareholder", name: "TWSE OpenAPI t187ap38_L", url: twseShareholderUrl, status: sourceFetchCache.get(twseShareholderUrl)?.status || null },
+            { key: "conference", name: "Investor conference source", url: null, status: { ok: false, message: "第一版尚未接入穩定官方資料源" } },
+            { key: "news", name: "External news source", url: null, status: { ok: false, message: "第一版未接入外部新聞正式資料" } },
+          ],
+          metadata: sourceMeta({ data_source: "server timeline source registry", confidence: 0.8 }),
+        },
+      );
       return;
     }
     if (url.pathname === "/api/dashboard") {
