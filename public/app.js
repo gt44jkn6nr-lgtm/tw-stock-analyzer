@@ -7,11 +7,16 @@ const canvases = {
 
 const fmt = new Intl.NumberFormat("zh-TW", { maximumFractionDigits: 2 });
 const pct = new Intl.NumberFormat("zh-TW", { style: "percent", maximumFractionDigits: 2 });
-const watchStorageKey = "tw-stock-watchlist-v1";
+const moneyFmt = new Intl.NumberFormat("zh-TW", { maximumFractionDigits: 0 });
+
+const watchStorageKey = "tw-stock-watchlist-v2";
+const legacyWatchStorageKey = "tw-stock-watchlist-v1";
 const notifyStorageKey = "tw-stock-entry-notify-v1";
 const drawingStorageKey = "tw-stock-drawings-v1";
+const alertRulesKey = "tw-stock-alert-rules-v1";
+const alertHistoryKey = "tw-stock-alert-history-v1";
+
 const allIndustry = "全部";
-let selectedIndustry = allIndustry;
 let selectedMajorIndustry = allIndustry;
 let selectedSubIndustry = allIndustry;
 let currentLoadedStock = "";
@@ -21,291 +26,164 @@ let notifyEnabled = localStorage.getItem(notifyStorageKey) === "1";
 let lastEntryNotifyKey = "";
 let latestChartData = null;
 let chartZoom = 1;
-const drawingStrokes = [];
 let drawingStore = loadDrawingStore();
+const drawingStrokes = [];
 
-const defaultWatchlist = [
-  { stockNo: "2330", name: "台積電", industry: "台積電供應鏈 / 晶圓代工" },
-
-  { stockNo: "2404", name: "漢唐", industry: "台積電供應鏈 / 建廠廠務設備" },
-  { stockNo: "6139", name: "亞翔", industry: "台積電供應鏈 / 建廠廠務設備" },
-  { stockNo: "5536", name: "聖暉*", industry: "台積電供應鏈 / 建廠廠務設備" },
-  { stockNo: "6196", name: "帆宣", industry: "台積電供應鏈 / 建廠廠務設備" },
-  { stockNo: "6640", name: "均華", industry: "台積電供應鏈 / 建廠廠務設備" },
-
-  { stockNo: "4763", name: "材料-KY", industry: "台積電供應鏈 / 特化材料" },
-  { stockNo: "4739", name: "康普", industry: "台積電供應鏈 / 特化材料" },
-  { stockNo: "1723", name: "中碳", industry: "台積電供應鏈 / 特化材料" },
-  { stockNo: "4755", name: "三福化", industry: "台積電供應鏈 / 特化材料" },
-  { stockNo: "4768", name: "晶呈科技", industry: "台積電供應鏈 / 特化材料" },
-  { stockNo: "4721", name: "美琪瑪", industry: "台積電供應鏈 / 特化材料" },
-  { stockNo: "4770", name: "上品", industry: "台積電供應鏈 / 特化材料" },
-
-  { stockNo: "2344", name: "華邦電", industry: "記憶體" },
-  { stockNo: "2408", name: "南亞科", industry: "記憶體" },
-  { stockNo: "2337", name: "旺宏", industry: "記憶體" },
-  { stockNo: "6770", name: "力積電", industry: "記憶體" },
-  { stockNo: "8299", name: "群聯", industry: "記憶體" },
-  { stockNo: "6239", name: "力成", industry: "記憶體" },
-  { stockNo: "3006", name: "晶豪科", industry: "記憶體" },
-  { stockNo: "2329", name: "華泰", industry: "記憶體" },
-
-  { stockNo: "2327", name: "國巨", industry: "被動元件" },
-  { stockNo: "2492", name: "華新科", industry: "被動元件" },
-  { stockNo: "3026", name: "禾伸堂", industry: "被動元件" },
-  { stockNo: "2478", name: "大毅", industry: "被動元件" },
-  { stockNo: "6173", name: "信昌電", industry: "被動元件" },
-
-  { stockNo: "2481", name: "強茂", industry: "功率元件" },
-  { stockNo: "2342", name: "茂矽", industry: "功率元件" },
-  { stockNo: "3016", name: "嘉晶", industry: "功率元件" },
-  { stockNo: "5425", name: "台半", industry: "功率元件" },
-  { stockNo: "3707", name: "漢磊", industry: "功率元件" },
-  { stockNo: "8255", name: "朋程", industry: "功率元件" },
-
-  { stockNo: "3037", name: "欣興", industry: "ABF 載板" },
-  { stockNo: "3189", name: "景碩", industry: "ABF 載板" },
-  { stockNo: "8046", name: "南電", industry: "ABF 載板" },
-
-  { stockNo: "1802", name: "台玻", industry: "玻璃基板 / 面板玻璃" },
-  { stockNo: "3481", name: "群創", industry: "玻璃基板 / 面板玻璃" },
-  { stockNo: "3149", name: "正達", industry: "玻璃基板 / 面板玻璃" },
-
-  { stockNo: "6207", name: "雷科", industry: "玻璃基板 / 設備材料" },
-  { stockNo: "1809", name: "中釉", industry: "玻璃基板 / 設備材料" },
-  { stockNo: "4976", name: "佳凌", industry: "玻璃基板 / 設備材料" },
-
-  { stockNo: "2383", name: "台光電", industry: "銅箔基板 / CCL" },
-  { stockNo: "6213", name: "聯茂", industry: "銅箔基板 / CCL" },
-  { stockNo: "6274", name: "台燿", industry: "銅箔基板 / CCL" },
-  { stockNo: "8358", name: "金居", industry: "銅箔基板 / CCL" },
-  { stockNo: "5469", name: "瀚宇博", industry: "銅箔基板 / CCL" },
-  { stockNo: "2368", name: "金像電", industry: "銅箔基板 / CCL" },
-
-  { stockNo: "6488", name: "環球晶", industry: "半導體材料 / 矽晶圓" },
-  { stockNo: "5483", name: "中美晶", industry: "半導體材料 / 矽晶圓" },
-  { stockNo: "6182", name: "合晶", industry: "半導體材料 / 矽晶圓" },
-
-  { stockNo: "1773", name: "勝一", industry: "半導體材料 / 化學材料" },
-
-  { stockNo: "1605", name: "華新", industry: "原物料 / 漲價波動" },
-  { stockNo: "2002", name: "中鋼", industry: "原物料 / 漲價波動" },
-  { stockNo: "1303", name: "南亞", industry: "原物料 / 漲價波動" },
-  { stockNo: "6505", name: "台塑化", industry: "原物料 / 漲價波動" },
-  { stockNo: "1304", name: "台聚", industry: "原物料 / 漲價波動" },
-  { stockNo: "1312", name: "國喬", industry: "原物料 / 漲價波動" },
-
-  { stockNo: "2454", name: "聯發科", industry: "IC 設計" },
-
-  { stockNo: "3455", name: "由田", industry: "小型股 / 題材觀察" },
-  { stockNo: "4908", name: "前鼎", industry: "小型股 / 題材觀察" },
-  { stockNo: "3163", name: "波若威", industry: "小型股 / 題材觀察" },
-  { stockNo: "8088", name: "品安", industry: "小型股 / 題材觀察" },
-  { stockNo: "3260", name: "威剛", industry: "小型股 / 題材觀察" },
-  { stockNo: "6125", name: "廣運", industry: "小型股 / 題材觀察" },
-  { stockNo: "6245", name: "立端", industry: "小型股 / 題材觀察" },
-  { stockNo: "4979", name: "華星光", industry: "小型股 / 題材觀察" },
-
-  { stockNo: "2317", name: "鴻海", industry: "電子代工" },
-  { stockNo: "2881", name: "富邦金", industry: "金融保險" },
-  { stockNo: "2603", name: "長榮", industry: "航運" },
-];
-const industryMapAdditions = [
+const builtInWatchlist = [
   { stockNo: "2330", name: "台積電", industry: "半導體 / 晶圓代工" },
-  { stockNo: "2303", name: "聯電", industry: "半導體 / 晶圓代工" },
-  { stockNo: "6770", name: "力積電", industry: "半導體 / 晶圓代工與記憶體" },
-  { stockNo: "5347", name: "世界", industry: "半導體 / 晶圓代工" },
-  { stockNo: "3105", name: "穩懋", industry: "半導體 / 化合物晶圓代工" },
-
   { stockNo: "2404", name: "漢唐", industry: "台積電供應鏈 / 建廠廠務設備" },
   { stockNo: "6139", name: "亞翔", industry: "台積電供應鏈 / 建廠廠務設備" },
   { stockNo: "5536", name: "聖暉*", industry: "台積電供應鏈 / 建廠廠務設備" },
-  { stockNo: "6196", name: "帆宣", industry: "台積電供應鏈 / 建廠廠務設備" },
-  { stockNo: "6667", name: "信紘科", industry: "台積電供應鏈 / 廠務與特殊氣體" },
-  { stockNo: "6806", name: "森崴能源", industry: "台積電供應鏈 / 綠電與能源" },
-
-  { stockNo: "5443", name: "均豪", industry: "半導體設備 / 檢測與自動化" },
-  { stockNo: "6640", name: "均華", industry: "半導體設備 / 先進封裝設備" },
-  { stockNo: "3455", name: "由田", industry: "半導體設備 / AOI 檢測" },
-  { stockNo: "3131", name: "弘塑", industry: "半導體設備 / 濕製程" },
-  { stockNo: "3583", name: "辛耘", industry: "半導體設備 / 再生晶圓與設備" },
-  { stockNo: "6187", name: "萬潤", industry: "半導體設備 / 封裝自動化" },
-  { stockNo: "6125", name: "廣運", industry: "半導體設備 / 自動化與物流" },
-  { stockNo: "2464", name: "盟立", industry: "半導體設備 / 自動化與機器人" },
-
-  { stockNo: "4763", name: "材料-KY", industry: "半導體材料 / 特用化學" },
-  { stockNo: "4768", name: "晶呈科技", industry: "半導體材料 / 特用氣體" },
-  { stockNo: "4770", name: "上品", industry: "半導體材料 / 耐腐蝕材料" },
-  { stockNo: "4755", name: "三福化", industry: "半導體材料 / 濕電子化學品" },
-  { stockNo: "1773", name: "勝一", industry: "半導體材料 / 溶劑" },
-  { stockNo: "1560", name: "中砂", industry: "半導體材料 / 再生晶圓與鑽石碟" },
-  { stockNo: "2338", name: "光罩", industry: "半導體材料 / 光罩" },
-  { stockNo: "6488", name: "環球晶", industry: "半導體材料 / 矽晶圓" },
-  { stockNo: "5483", name: "中美晶", industry: "半導體材料 / 矽晶圓" },
-  { stockNo: "6182", name: "合晶", industry: "半導體材料 / 矽晶圓" },
-  { stockNo: "3016", name: "嘉晶", industry: "半導體材料 / 磊晶與功率元件" },
-
-  { stockNo: "3711", name: "日月光投控", industry: "半導體 / 封測" },
-  { stockNo: "6239", name: "力成", industry: "半導體 / 封測" },
-  { stockNo: "2449", name: "京元電子", industry: "半導體 / 測試" },
-  { stockNo: "3264", name: "欣銓", industry: "半導體 / 測試" },
-  { stockNo: "8150", name: "南茂", industry: "半導體 / 封測" },
-  { stockNo: "6147", name: "頎邦", industry: "半導體 / 驅動 IC 封測" },
-  { stockNo: "6271", name: "同欣電", industry: "半導體 / 車用與影像封裝" },
-
-  { stockNo: "2454", name: "聯發科", industry: "IC 設計 / 手機與 ASIC" },
-  { stockNo: "2379", name: "瑞昱", industry: "IC 設計 / 網通與音訊" },
-  { stockNo: "3661", name: "世芯-KY", industry: "IC 設計 / AI ASIC" },
-  { stockNo: "3443", name: "創意", industry: "IC 設計 / ASIC 服務" },
-  { stockNo: "3035", name: "智原", industry: "IC 設計 / ASIC 服務" },
-  { stockNo: "5274", name: "信驊", industry: "IC 設計 / 伺服器管理晶片" },
-  { stockNo: "6415", name: "矽力*-KY", industry: "IC 設計 / 電源管理" },
-  { stockNo: "4919", name: "新唐", industry: "IC 設計 / MCU" },
-  { stockNo: "6202", name: "盛群", industry: "IC 設計 / MCU" },
-  { stockNo: "2436", name: "偉詮電", industry: "IC 設計 / MCU 與電源" },
-  { stockNo: "2458", name: "義隆", industry: "IC 設計 / 觸控" },
-
-  { stockNo: "2344", name: "華邦電", industry: "記憶體 / DRAM 與 Flash" },
+  { stockNo: "4763", name: "材料-KY", industry: "台積電供應鏈 / 特化材料" },
+  { stockNo: "4768", name: "晶呈科技", industry: "台積電供應鏈 / 特化材料" },
+  { stockNo: "2344", name: "華邦電", industry: "記憶體 / DRAM Flash" },
   { stockNo: "2408", name: "南亞科", industry: "記憶體 / DRAM" },
   { stockNo: "2337", name: "旺宏", industry: "記憶體 / NOR Flash" },
-  { stockNo: "8299", name: "群聯", industry: "記憶體 / 控制 IC" },
-  { stockNo: "3006", name: "晶豪科", industry: "記憶體 / IC 設計" },
-  { stockNo: "2329", name: "華泰", industry: "記憶體 / 封測" },
-  { stockNo: "3260", name: "威剛", industry: "記憶體 / 模組" },
-  { stockNo: "8271", name: "宇瞻", industry: "記憶體 / 模組" },
-  { stockNo: "4967", name: "十銓", industry: "記憶體 / 模組" },
-  { stockNo: "8088", name: "品安", industry: "記憶體 / 模組" },
-  { stockNo: "5289", name: "宜鼎", industry: "記憶體 / 工控模組" },
-  { stockNo: "2451", name: "創見", industry: "記憶體 / 模組" },
-
+  { stockNo: "2327", name: "國巨", industry: "被動元件 / MLCC" },
+  { stockNo: "2492", name: "華新科", industry: "被動元件 / MLCC" },
+  { stockNo: "2478", name: "大毅", industry: "被動元件 / 電阻" },
+  { stockNo: "2481", name: "強茂", industry: "功率元件 / 二極體" },
+  { stockNo: "5425", name: "台半", industry: "功率元件 / MOSFET" },
+  { stockNo: "2342", name: "茂矽", industry: "功率元件 / MOSFET" },
+  { stockNo: "3707", name: "漢磊", industry: "功率元件 / SiC GaN" },
   { stockNo: "3037", name: "欣興", industry: "PCB / ABF 載板" },
   { stockNo: "3189", name: "景碩", industry: "PCB / ABF 載板" },
   { stockNo: "8046", name: "南電", industry: "PCB / ABF 載板" },
-  { stockNo: "2383", name: "台光電", industry: "PCB / CCL 銅箔基板" },
-  { stockNo: "6274", name: "台燿", industry: "PCB / CCL 銅箔基板" },
-  { stockNo: "6213", name: "聯茂", industry: "PCB / CCL 銅箔基板" },
+  { stockNo: "2383", name: "台光電", industry: "PCB / 銅箔基板 CCL" },
+  { stockNo: "6274", name: "台燿", industry: "PCB / 銅箔基板 CCL" },
+  { stockNo: "6213", name: "聯茂", industry: "PCB / 銅箔基板 CCL" },
   { stockNo: "8358", name: "金居", industry: "PCB / 銅箔" },
-  { stockNo: "5469", name: "瀚宇博", industry: "PCB / HDI 與板廠" },
-  { stockNo: "2368", name: "金像電", industry: "PCB / AI 伺服器板" },
-  { stockNo: "2313", name: "華通", industry: "PCB / HDI 與車用板" },
-  { stockNo: "3044", name: "健鼎", industry: "PCB / 多層板" },
-  { stockNo: "4958", name: "臻鼎-KY", industry: "PCB / 蘋果與伺服器板" },
-  { stockNo: "6191", name: "精成科", industry: "PCB / 多層板" },
-
-  { stockNo: "1802", name: "台玻", industry: "玻璃基板 / 玻纖與玻璃材料" },
-  { stockNo: "3481", name: "群創", industry: "玻璃基板 / 面板與先進封裝題材" },
+  { stockNo: "1802", name: "台玻", industry: "玻璃基板 / 玻璃材料" },
+  { stockNo: "3481", name: "群創", industry: "玻璃基板 / 面板與玻璃加工" },
   { stockNo: "3149", name: "正達", industry: "玻璃基板 / 玻璃加工" },
-  { stockNo: "6207", name: "雷科", industry: "玻璃基板 / 雷射設備" },
-  { stockNo: "1809", name: "中釉", industry: "玻璃基板 / 薄膜與釉料" },
-  { stockNo: "4976", name: "佳凌", industry: "玻璃基板 / 光學玻璃加工" },
-  { stockNo: "2409", name: "友達", industry: "面板 / 顯示器" },
-  { stockNo: "6116", name: "彩晶", industry: "面板 / 顯示器" },
-
-  { stockNo: "2327", name: "國巨", industry: "被動元件 / MLCC" },
-  { stockNo: "2492", name: "華新科", industry: "被動元件 / MLCC" },
-  { stockNo: "3026", name: "禾伸堂", industry: "被動元件 / 通路與 MLCC" },
-  { stockNo: "2478", name: "大毅", industry: "被動元件 / 電阻" },
-  { stockNo: "6173", name: "信昌電", industry: "被動元件 / MLCC" },
-  { stockNo: "2375", name: "凱美", industry: "被動元件 / 電容" },
-  { stockNo: "2472", name: "立隆電", industry: "被動元件 / 鋁電容" },
-  { stockNo: "2428", name: "興勤", industry: "被動元件 / 保護元件" },
-  { stockNo: "3042", name: "晶技", industry: "被動元件 / 石英元件" },
-
-  { stockNo: "2481", name: "強茂", industry: "功率元件 / 二極體" },
-  { stockNo: "5425", name: "台半", industry: "功率元件 / 二極體與 MOSFET" },
-  { stockNo: "2342", name: "茂矽", industry: "功率元件 / MOSFET" },
-  { stockNo: "3707", name: "漢磊", industry: "功率元件 / 化合物半導體" },
-  { stockNo: "8255", name: "朋程", industry: "功率元件 / 車用二極體" },
-
-  { stockNo: "2382", name: "廣達", industry: "AI 伺服器 / ODM" },
-  { stockNo: "3231", name: "緯創", industry: "AI 伺服器 / ODM" },
-  { stockNo: "6669", name: "緯穎", industry: "AI 伺服器 / ODM" },
-  { stockNo: "2356", name: "英業達", industry: "AI 伺服器 / ODM" },
-  { stockNo: "2324", name: "仁寶", industry: "AI 伺服器 / ODM" },
-  { stockNo: "2317", name: "鴻海", industry: "AI 伺服器 / ODM 與電子代工" },
-  { stockNo: "3017", name: "奇鋐", industry: "AI 伺服器 / 散熱" },
-  { stockNo: "3324", name: "雙鴻", industry: "AI 伺服器 / 散熱" },
-  { stockNo: "3653", name: "健策", industry: "AI 伺服器 / 均熱片與散熱" },
-  { stockNo: "2421", name: "建準", industry: "AI 伺服器 / 風扇散熱" },
-  { stockNo: "8996", name: "高力", industry: "AI 伺服器 / 水冷與熱交換" },
-  { stockNo: "2308", name: "台達電", industry: "AI 伺服器 / 電源與散熱" },
-  { stockNo: "6412", name: "群電", industry: "AI 伺服器 / 電源" },
-  { stockNo: "3533", name: "嘉澤", industry: "AI 伺服器 / 連接器" },
-  { stockNo: "3665", name: "貿聯-KY", industry: "AI 伺服器 / 線束" },
-  { stockNo: "3023", name: "信邦", industry: "AI 伺服器 / 線束與連接器" },
-  { stockNo: "2392", name: "正崴", industry: "AI 伺服器 / 連接器" },
-
-  { stockNo: "3081", name: "聯亞", industry: "光通訊 / 磊晶" },
-  { stockNo: "4979", name: "華星光", industry: "光通訊 / 光模組" },
-  { stockNo: "4908", name: "前鼎", industry: "光通訊 / 光模組" },
-  { stockNo: "3163", name: "波若威", industry: "光通訊 / 光纖元件" },
-  { stockNo: "3363", name: "上詮", industry: "光通訊 / 光纖元件" },
-  { stockNo: "3450", name: "聯鈞", industry: "光通訊 / 光模組" },
-  { stockNo: "3234", name: "光環", industry: "光通訊 / 光元件" },
-
-  { stockNo: "1513", name: "中興電", industry: "電力與重電 / 變壓器與電網" },
-  { stockNo: "1519", name: "華城", industry: "電力與重電 / 變壓器" },
-  { stockNo: "1504", name: "東元", industry: "電力與重電 / 馬達與節能" },
-  { stockNo: "1605", name: "華新", industry: "原物料 / 銅與電線電纜" },
+  { stockNo: "6207", name: "雷科", industry: "玻璃基板 / 設備" },
+  { stockNo: "1809", name: "中釉", industry: "玻璃基板 / 薄膜材料" },
+  { stockNo: "4976", name: "佳凌", industry: "玻璃基板 / 光學玻璃" },
+  { stockNo: "2382", name: "廣達", industry: "AI Server / ODM" },
+  { stockNo: "3231", name: "緯創", industry: "AI Server / ODM" },
+  { stockNo: "6669", name: "緯穎", industry: "AI Server / ODM" },
+  { stockNo: "3017", name: "奇鋐", industry: "AI Server / 散熱" },
+  { stockNo: "2308", name: "台達電", industry: "AI Server / BBU 電源" },
+  { stockNo: "4908", name: "前鼎", industry: "CPO / 光通訊" },
+  { stockNo: "3163", name: "波若威", industry: "CPO / 光通訊" },
+  { stockNo: "1513", name: "中興電", industry: "800VDC HVDC / 電力設備" },
+  { stockNo: "1519", name: "華城", industry: "800VDC HVDC / 重電" },
+  { stockNo: "1605", name: "華新", industry: "原物料 / 銅與線纜" },
   { stockNo: "2002", name: "中鋼", industry: "原物料 / 鋼鐵" },
-  { stockNo: "1303", name: "南亞", industry: "原物料 / 塑化與 CCL 上游" },
-  { stockNo: "6505", name: "台塑化", industry: "原物料 / 油品與塑化" },
-  { stockNo: "1304", name: "台聚", industry: "原物料 / 塑化" },
-  { stockNo: "1312", name: "國喬", industry: "原物料 / 塑化" },
-
-  { stockNo: "2603", name: "長榮", industry: "航運 / 貨櫃" },
-  { stockNo: "2609", name: "陽明", industry: "航運 / 貨櫃" },
-  { stockNo: "2615", name: "萬海", industry: "航運 / 貨櫃" },
-  { stockNo: "2618", name: "長榮航", industry: "航運 / 航空" },
-  { stockNo: "2610", name: "華航", industry: "航運 / 航空" },
-  { stockNo: "2881", name: "富邦金", industry: "金融 / 金控" },
-  { stockNo: "2882", name: "國泰金", industry: "金融 / 金控" },
-  { stockNo: "2886", name: "兆豐金", industry: "金融 / 金控" },
-  { stockNo: "2891", name: "中信金", industry: "金融 / 金控" },
+  { stockNo: "1303", name: "南亞", industry: "原物料 / 樹脂" },
 ];
+
+let watchlist = loadWatchlist();
+let alertRules = loadJson(alertRulesKey, []);
+let alertHistory = loadJson(alertHistoryKey, []);
+
+function keyParam() {
+  return new URLSearchParams(location.search).get("key") || "";
+}
+
+function apiUrl(path, params = {}) {
+  const url = new URL(path, location.origin);
+  url.searchParams.set("key", keyParam());
+  Object.entries(params).forEach(([key, value]) => {
+    if (value != null && value !== "") url.searchParams.set(key, value);
+  });
+  return `${url.pathname}?${url.searchParams.toString()}`;
+}
+
+async function fetchApi(path, params) {
+  const response = await fetch(apiUrl(path, params));
+  const data = await response.json();
+  if (!response.ok || data.error) throw new Error(data.error || "資料讀取失敗");
+  return data;
+}
+
+function loadJson(key, fallback) {
+  try {
+    const data = JSON.parse(localStorage.getItem(key) || "null");
+    return data ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveJson(key, value) {
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => {
+    const map = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+    return map[char];
+  });
+}
+
+function formatDateTime(value) {
+  if (!value) return "--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("zh-TW", { hour12: false });
+}
+
+function formatPct(value) {
+  return value == null || !Number.isFinite(value) ? "--" : pct.format(value);
+}
+
+function formatNumber(value) {
+  return value == null || !Number.isFinite(value) ? "--" : fmt.format(value);
+}
+
+function trendClass(value) {
+  return value >= 0 ? "up" : "down";
+}
+
+function metaLine(meta) {
+  if (!meta) return "資料來源 --";
+  const stale = isStale(meta.fetched_at || meta.published_at);
+  return `${meta.data_source || "--"}｜資料期 ${meta.reporting_period || "--"}｜抓取 ${formatDateTime(meta.fetched_at)}${stale ? "｜資料可能過期" : ""}`;
+}
+
+function isStale(value, maxDays = 5) {
+  if (!value) return false;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  return Date.now() - date.getTime() > maxDays * 86400000;
+}
+
+function dataBadge(meta) {
+  if (!meta) return `<span class="data-badge stale">資料未知</span>`;
+  if (meta.confidence === 0) return `<span class="data-badge stale">未接入</span>`;
+  if (meta.is_estimated) return `<span class="data-badge estimate">模型預估</span>`;
+  return `<span class="data-badge source">公告/來源資料</span>`;
+}
 
 function uniqueWatchlist(items) {
   const map = new Map();
-  for (const item of items) map.set(item.stockNo, item);
+  for (const item of items) {
+    if (!item?.stockNo) continue;
+    map.set(String(item.stockNo), {
+      stockNo: String(item.stockNo),
+      name: item.name || String(item.stockNo),
+      industry: item.industry || "未分類 / 其他",
+    });
+  }
   return [...map.values()];
 }
 
-const builtInWatchlist = uniqueWatchlist([...defaultWatchlist, ...industryMapAdditions]);
-const legacyDefaultStocksToRemove = new Set(["1810", "2456", "3583"]);
-
-let watchlist = loadWatchlist();
-
 function loadWatchlist() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(watchStorageKey) || "[]");
-    if (Array.isArray(saved) && saved.length) {
-      const merged = saved.filter((item) => !legacyDefaultStocksToRemove.has(item.stockNo));
-      for (const item of builtInWatchlist) {
-        const existing = merged.find((savedItem) => savedItem.stockNo === item.stockNo);
-        if (!existing) {
-          merged.push(item);
-        } else {
-          existing.name = item.name;
-          existing.industry = item.industry;
-        }
-      }
-      localStorage.setItem(watchStorageKey, JSON.stringify(merged));
-      return merged;
-    }
-  } catch {}
-  return [...builtInWatchlist];
+  const saved = loadJson(watchStorageKey, null) || loadJson(legacyWatchStorageKey, []);
+  return uniqueWatchlist([...(Array.isArray(saved) ? saved : []), ...builtInWatchlist]);
 }
 
 function saveWatchlist() {
-  localStorage.setItem(watchStorageKey, JSON.stringify(watchlist));
+  saveJson(watchStorageKey, watchlist);
 }
 
 function industryParts(industry) {
-  const [major, ...rest] = String(industry || "其他").split("/").map((part) => part.trim()).filter(Boolean);
-  return {
-    major: major || "其他",
-    sub: rest.join(" / ") || allIndustry,
-  };
+  const [major, ...rest] = String(industry || "未分類 / 其他")
+    .split("/")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return { major: major || "未分類", sub: rest.join(" / ") || allIndustry };
 }
 
 function majorIndustries() {
@@ -314,276 +192,169 @@ function majorIndustries() {
 
 function subIndustries(major) {
   if (major === allIndustry) return [allIndustry];
-  const subs = watchlist
-    .filter((item) => industryParts(item.industry).major === major)
-    .map((item) => industryParts(item.industry).sub);
+  const subs = watchlist.filter((item) => industryParts(item.industry).major === major).map((item) => industryParts(item.industry).sub);
   return [allIndustry, ...new Set(subs)];
 }
 
 function itemMatchesSelectedIndustry(item) {
   if (selectedMajorIndustry === allIndustry) return true;
   const parts = industryParts(item.industry);
-  if (parts.major !== selectedMajorIndustry) return false;
-  return selectedSubIndustry === allIndustry || parts.sub === selectedSubIndustry;
-}
-
-function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, (char) => {
-    const map = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
-    return map[char];
-  });
+  return parts.major === selectedMajorIndustry && (selectedSubIndustry === allIndustry || parts.sub === selectedSubIndustry);
 }
 
 function renderWatchlist() {
   const tabs = document.getElementById("industryTabs");
   const list = document.getElementById("watchList");
-  const currentStock = document.getElementById("stockNo").value.trim();
+  const currentStock = document.getElementById("stockNo")?.value.trim();
   if (!tabs || !list) return;
-
   const majors = majorIndustries();
   if (!majors.includes(selectedMajorIndustry)) selectedMajorIndustry = allIndustry;
   const subs = subIndustries(selectedMajorIndustry);
   if (!subs.includes(selectedSubIndustry)) selectedSubIndustry = allIndustry;
-  selectedIndustry = selectedMajorIndustry === allIndustry
-    ? allIndustry
-    : selectedSubIndustry === allIndustry
-      ? selectedMajorIndustry
-      : `${selectedMajorIndustry} / ${selectedSubIndustry}`;
-
   tabs.innerHTML = `
-    <div class="industry-row industry-major">
+    <div class="industry-row">
       ${majors
-        .map((industry) => `<button type="button" class="tab-button ${industry === selectedMajorIndustry ? "active" : ""}" data-major-industry="${escapeHtml(industry)}">${escapeHtml(industry)}</button>`)
+        .map(
+          (industry) =>
+            `<button type="button" class="tab-button ${industry === selectedMajorIndustry ? "active" : ""}" data-major-industry="${escapeHtml(industry)}">${escapeHtml(industry)}</button>`,
+        )
         .join("")}
     </div>
-    ${selectedMajorIndustry === allIndustry ? "" : `
-      <div class="industry-row industry-sub">
-        ${subs
-          .map((industry) => `<button type="button" class="tab-button sub ${industry === selectedSubIndustry ? "active" : ""}" data-sub-industry="${escapeHtml(industry)}">${escapeHtml(industry)}</button>`)
-          .join("")}
-      </div>
-    `}
+    ${
+      selectedMajorIndustry === allIndustry
+        ? ""
+        : `<div class="industry-row sub-row">${subs
+            .map(
+              (industry) =>
+                `<button type="button" class="tab-button sub ${industry === selectedSubIndustry ? "active" : ""}" data-sub-industry="${escapeHtml(industry)}">${escapeHtml(industry)}</button>`,
+            )
+            .join("")}</div>`
+    }
   `;
-
-  const visible = watchlist.filter(itemMatchesSelectedIndustry);
-  list.innerHTML = visible.length
-    ? visible
-        .map(
-          (item) => `
-            <button type="button" class="watch-card ${item.stockNo === currentStock ? "active" : ""}" data-stock="${escapeHtml(item.stockNo)}">
-              <strong>${escapeHtml(item.stockNo)}</strong>
-              <span>${escapeHtml(item.name || "未命名")}</span>
-              <small>${escapeHtml(item.industry || "其他")}</small>
-              <span class="watch-remove" data-remove="${escapeHtml(item.stockNo)}">移除</span>
-            </button>
-          `,
-        )
-        .join("")
-    : `<div class="metric"><span>這個族群還沒有股票</span><strong>可用上方表單新增</strong></div>`;
+  const filtered = watchlist.filter(itemMatchesSelectedIndustry);
+  list.innerHTML = filtered
+    .map(
+      (item) => `
+        <button type="button" class="watch-card ${item.stockNo === currentStock ? "active" : ""}" data-stock="${escapeHtml(item.stockNo)}">
+          <strong>${escapeHtml(item.stockNo)} ${escapeHtml(item.name)}</strong>
+          <span>${escapeHtml(item.industry)}</span>
+          <small>點擊載入 K 線</small>
+          <b class="watch-remove" data-remove="${escapeHtml(item.stockNo)}">移除</b>
+        </button>
+      `,
+    )
+    .join("");
 }
 
 function addWatchItem(stockNo, name, industry) {
-  const cleanStock = stockNo.trim();
+  const cleanStock = String(stockNo || "").trim();
   if (!cleanStock) return;
-  const cleanIndustry = industry || "其他";
-  const existing = watchlist.find((item) => item.stockNo === cleanStock);
-  if (existing) {
-    existing.name = name.trim() || existing.name;
-    existing.industry = cleanIndustry;
-  } else {
-    watchlist.push({ stockNo: cleanStock, name: name.trim(), industry: cleanIndustry });
-  }
-  const parts = industryParts(cleanIndustry);
-  selectedMajorIndustry = parts.major;
-  selectedSubIndustry = parts.sub;
-  selectedIndustry = cleanIndustry;
+  const item = {
+    stockNo: cleanStock,
+    name: String(name || cleanStock).trim(),
+    industry: String(industry || "未分類 / 其他").trim(),
+  };
+  watchlist = uniqueWatchlist([item, ...watchlist]);
   saveWatchlist();
   renderWatchlist();
 }
 
 function loadDrawingStore() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(drawingStorageKey) || "{}");
-    return saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
-  } catch {
-    return {};
-  }
+  return loadJson(drawingStorageKey, {});
 }
 
 function saveDrawingStore() {
-  localStorage.setItem(drawingStorageKey, JSON.stringify(drawingStore));
+  saveJson(drawingStorageKey, drawingStore);
 }
 
-function drawingStockKey(stockNo = currentLoadedStock) {
-  return String(stockNo || document.getElementById("stockNo")?.value || "").trim();
+function drawingKey(stockNo = currentLoadedStock) {
+  return stockNo || "default";
 }
 
 function saveAnnotationsForStock(stockNo = currentLoadedStock) {
-  const key = drawingStockKey(stockNo);
-  if (!key) return;
-  drawingStore[key] = drawingStrokes.map((stroke) => ({
+  if (!stockNo) return;
+  drawingStore[drawingKey(stockNo)] = drawingStrokes.map((stroke) => ({
     color: stroke.color,
     width: stroke.width,
-    points: stroke.points.map((point) => ({ x: point.x, y: point.y })),
+    points: stroke.points,
   }));
   saveDrawingStore();
 }
 
 function loadAnnotationsForStock(stockNo = currentLoadedStock) {
-  const key = drawingStockKey(stockNo);
   drawingStrokes.length = 0;
-  const saved = Array.isArray(drawingStore[key]) ? drawingStore[key] : [];
-  for (const stroke of saved) {
-    if (!Array.isArray(stroke.points) || stroke.points.length < 2) continue;
-    drawingStrokes.push({
-      color: stroke.color || "#d64550",
-      width: Number(stroke.width || 3),
-      points: stroke.points
-        .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
-        .map((point) => ({ x: point.x, y: point.y })),
-    });
+  const saved = drawingStore[drawingKey(stockNo)];
+  if (Array.isArray(saved)) {
+    saved.forEach((stroke) => drawingStrokes.push(stroke));
   }
+  redrawAnnotations();
 }
 
 function setupCanvas(canvas) {
+  const ratio = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-  const cssHeight = rect.height || Number(canvas.getAttribute("height"));
-  canvas.width = Math.max(1, Math.floor(rect.width * dpr));
-  canvas.height = Math.max(1, Math.floor(cssHeight * dpr));
+  const height = Number(canvas.getAttribute("height")) || rect.height;
+  canvas.width = Math.max(1, Math.floor(rect.width * ratio));
+  canvas.height = Math.max(1, Math.floor(height * ratio));
   const ctx = canvas.getContext("2d");
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  return { ctx, width: rect.width, height: cssHeight };
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  return { ctx, width: rect.width, height };
 }
 
-function setupDrawCanvas() {
-  if (!canvases.draw) return;
-  const rect = canvases.draw.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-  canvases.draw.width = Math.max(1, Math.floor(rect.width * dpr));
-  canvases.draw.height = Math.max(1, Math.floor(rect.height * dpr));
-  const ctx = canvases.draw.getContext("2d");
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  redrawAnnotations();
-}
-
-function drawPointFromEvent(event) {
-  const rect = canvases.draw.getBoundingClientRect();
-  return {
-    x: Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)),
-    y: Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height)),
-  };
-}
-
-function drawStroke(ctx, stroke, width, height) {
-  if (!stroke.points.length) return;
-  ctx.strokeStyle = stroke.color;
-  ctx.lineWidth = stroke.width;
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.beginPath();
-  stroke.points.forEach((point, index) => {
-    const x = point.x * width;
-    const y = point.y * height;
-    if (index === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  });
-  ctx.stroke();
-}
-
-function redrawAnnotations() {
-  if (!canvases.draw) return;
-  const rect = canvases.draw.getBoundingClientRect();
-  const ctx = canvases.draw.getContext("2d");
-  ctx.clearRect(0, 0, rect.width, rect.height);
-  for (const stroke of drawingStrokes) drawStroke(ctx, stroke, rect.width, rect.height);
-  if (activeStroke) drawStroke(ctx, activeStroke, rect.width, rect.height);
-}
-
-function clearAnnotations(persist = true) {
-  drawingStrokes.length = 0;
-  activeStroke = null;
-  if (persist) saveAnnotationsForStock();
-  redrawAnnotations();
-}
-
-function setDrawingEnabled(enabled) {
-  drawEnabled = enabled;
-  document.querySelector(".draw-surface")?.classList.toggle("drawing-enabled", enabled);
-  const button = document.getElementById("drawToggle");
-  if (button) button.textContent = enabled ? "停止畫線" : "畫線";
-}
-
-function sliceIndicatorSet(indicators, start) {
-  return {
-    ma5: indicators.ma5.slice(start),
-    ma20: indicators.ma20.slice(start),
-    ma60: indicators.ma60.slice(start),
-    rsi14: indicators.rsi14.slice(start),
-    bollinger: {
-      mid: indicators.bollinger.mid.slice(start),
-      upper: indicators.bollinger.upper.slice(start),
-      lower: indicators.bollinger.lower.slice(start),
-    },
-    macd: {
-      line: indicators.macd.line.slice(start),
-      signal: indicators.macd.signal.slice(start),
-      hist: indicators.macd.hist.slice(start),
-    },
-  };
-}
-
-function visibleChartData(data) {
-  const total = data.rows.length;
-  const minRows = Math.min(total, 30);
-  const visibleRows = Math.max(minRows, Math.floor(total / chartZoom));
-  const start = Math.max(0, total - visibleRows);
+function visibleData(data) {
+  if (!data?.rows?.length) return data;
+  const rows = data.rows;
+  const visibleCount = Math.max(35, Math.round(rows.length / chartZoom));
+  const start = Math.max(0, rows.length - visibleCount);
+  const offset = start;
   return {
     ...data,
-    rows: data.rows.slice(start),
-    indicators: sliceIndicatorSet(data.indicators, start),
+    rows: rows.slice(start),
+    indicators: {
+      ma5: data.indicators.ma5.slice(start),
+      ma20: data.indicators.ma20.slice(start),
+      ma60: data.indicators.ma60.slice(start),
+      rsi14: data.indicators.rsi14.slice(start),
+      bollinger: {
+        upper: data.indicators.bollinger.upper.slice(start),
+        lower: data.indicators.bollinger.lower.slice(start),
+        mid: data.indicators.bollinger.mid.slice(start),
+      },
+      macd: {
+        line: data.indicators.macd.line.slice(start),
+        signal: data.indicators.macd.signal.slice(start),
+        hist: data.indicators.macd.hist.slice(start),
+      },
+    },
+    _visibleOffset: offset,
   };
-}
-
-function updateZoomLabel() {
-  const label = document.getElementById("zoomLabel");
-  if (label) label.textContent = `${chartZoom.toFixed(chartZoom % 1 ? 1 : 0)}x`;
-}
-
-function redrawCharts() {
-  if (!latestChartData) return;
-  const view = visibleChartData(latestChartData);
-  drawPrice(view);
-  setupDrawCanvas();
-  drawRsi(view);
-  drawMacd(view);
-  updateZoomLabel();
-}
-
-function setChartZoom(nextZoom) {
-  chartZoom = Math.min(6, Math.max(1, nextZoom));
-  redrawCharts();
 }
 
 function scaleY(values, top, bottom) {
-  const clean = values.filter((v) => v != null && Number.isFinite(v));
-  const min = Math.min(...clean);
-  const max = Math.max(...clean);
-  const pad = (max - min || max || 1) * 0.08;
+  const clean = values.filter((value) => value != null && Number.isFinite(value));
+  let min = Math.min(...clean);
+  let max = Math.max(...clean);
+  if (!clean.length || min === max) {
+    min = (clean[0] || 0) - 1;
+    max = (clean[0] || 0) + 1;
+  }
+  const pad = (max - min) * 0.08 || 1;
+  min -= pad;
+  max += pad;
   return {
-    min: min - pad,
-    max: max + pad,
+    min,
+    max,
     y(value) {
-      return bottom - ((value - this.min) / (this.max - this.min)) * (bottom - top);
+      return bottom - ((value - min) / (max - min)) * (bottom - top);
     },
   };
 }
 
-function grid(ctx, width, height, left, right, top, bottom, yScale, labels = true) {
-  ctx.strokeStyle = "#e6ebf2";
+function grid(ctx, width, left, right, top, bottom, yScale, labels = true) {
+  ctx.strokeStyle = "rgba(139, 153, 177, .22)";
   ctx.lineWidth = 1;
-  ctx.font = "12px Arial";
-  ctx.fillStyle = "#667085";
+  ctx.font = "12px Microsoft JhengHei, Arial";
+  ctx.fillStyle = "#8b99b1";
   for (let i = 0; i <= 4; i++) {
     const y = top + ((bottom - top) * i) / 4;
     ctx.beginPath();
@@ -595,7 +366,7 @@ function grid(ctx, width, height, left, right, top, bottom, yScale, labels = tru
       ctx.fillText(fmt.format(value), 6, y + 4);
     }
   }
-  ctx.strokeStyle = "#cfd7e3";
+  ctx.strokeStyle = "rgba(139, 153, 177, .35)";
   ctx.strokeRect(left, top, right - left, bottom - top);
 }
 
@@ -606,10 +377,6 @@ function drawLine(ctx, points, rows, color, left, right, yScale, width = 1.5) {
   let started = false;
   points.forEach((value, i) => {
     if (value == null) return;
-    if (value < yScale.min || value > yScale.max) {
-      started = false;
-      return;
-    }
     const x = left + (i / Math.max(rows.length - 1, 1)) * (right - left);
     const y = yScale.y(value);
     if (!started) {
@@ -623,26 +390,24 @@ function drawLine(ctx, points, rows, color, left, right, yScale, width = 1.5) {
 }
 
 function drawPrice(data) {
+  const visible = visibleData(data);
   const { ctx, width, height } = setupCanvas(canvases.price);
-  const rows = data.rows;
-  const left = width < 520 ? 44 : 58;
+  const rows = visible.rows;
+  const left = width < 520 ? 44 : 60;
   const right = width - 12;
   const top = 12;
   const priceBottom = height * 0.72;
   const volumeTop = priceBottom + 18;
   const bottom = height - 22;
   ctx.clearRect(0, 0, width, height);
-
-  const prices = rows.flatMap((r) => [r.high, r.low]);
-  const yScale = scaleY(prices, top, priceBottom);
-  grid(ctx, width, height, left, right, top, priceBottom, yScale, width >= 420);
-
-  const candleWidth = Math.max(2, Math.min(8, ((right - left) / rows.length) * 0.58));
+  const yScale = scaleY(rows.flatMap((r) => [r.high, r.low]), top, priceBottom);
+  grid(ctx, width, left, right, top, priceBottom, yScale, width >= 420);
+  const candleWidth = Math.max(2, Math.min(9, ((right - left) / rows.length) * 0.62));
   rows.forEach((r, i) => {
     const x = left + (i / Math.max(rows.length - 1, 1)) * (right - left);
     const up = r.close >= r.open;
-    ctx.strokeStyle = up ? "#d64550" : "#0f9f6e";
-    ctx.fillStyle = up ? "#d64550" : "#0f9f6e";
+    ctx.strokeStyle = up ? "#e25555" : "#18b77c";
+    ctx.fillStyle = up ? "#e25555" : "#18b77c";
     ctx.beginPath();
     ctx.moveTo(x, yScale.y(r.high));
     ctx.lineTo(x, yScale.y(r.low));
@@ -651,80 +416,146 @@ function drawPrice(data) {
     const y2 = yScale.y(Math.min(r.open, r.close));
     ctx.fillRect(x - candleWidth / 2, y1, candleWidth, Math.max(1, y2 - y1));
   });
-
-  drawLine(ctx, data.indicators.ma5, rows, "#2563eb", left, right, yScale, 1.3);
-  drawLine(ctx, data.indicators.ma20, rows, "#ea8a1f", left, right, yScale, 1.3);
-  drawLine(ctx, data.indicators.ma60, rows, "#7856d6", left, right, yScale, 1.3);
-  drawLine(ctx, data.indicators.bollinger.upper, rows, "#2c9ab7", left, right, yScale, 1);
-  drawLine(ctx, data.indicators.bollinger.lower, rows, "#2c9ab7", left, right, yScale, 1);
-
+  drawLine(ctx, visible.indicators.ma5, rows, "#57a0ff", left, right, yScale, 1.3);
+  drawLine(ctx, visible.indicators.ma20, rows, "#f6a641", left, right, yScale, 1.3);
+  drawLine(ctx, visible.indicators.ma60, rows, "#b184ff", left, right, yScale, 1.3);
+  drawLine(ctx, visible.indicators.bollinger.upper, rows, "#44d1c2", left, right, yScale, 1);
+  drawLine(ctx, visible.indicators.bollinger.lower, rows, "#44d1c2", left, right, yScale, 1);
   const maxVolume = Math.max(...rows.map((r) => r.volume || 0));
   rows.forEach((r, i) => {
     const x = left + (i / Math.max(rows.length - 1, 1)) * (right - left);
     const h = maxVolume ? ((r.volume || 0) / maxVolume) * (bottom - volumeTop) : 0;
-    ctx.fillStyle = r.close >= r.open ? "rgba(214,69,80,.38)" : "rgba(15,159,110,.38)";
+    ctx.fillStyle = r.close >= r.open ? "rgba(226,85,85,.36)" : "rgba(24,183,124,.36)";
     ctx.fillRect(x - candleWidth / 2, bottom - h, candleWidth, h);
   });
-
-  ctx.fillStyle = "#667085";
-  ctx.font = "12px Arial";
-  ctx.fillText(rows[0].date, left, height - 6);
-  ctx.fillText(rows.at(-1).date, Math.max(left, right - 76), height - 6);
+  ctx.fillStyle = "#8b99b1";
+  ctx.font = "12px Microsoft JhengHei, Arial";
+  ctx.fillText(rows[0]?.date || "", left, height - 6);
+  ctx.fillText(rows.at(-1)?.date || "", Math.max(left, right - 82), height - 6);
 }
 
 function drawRsi(data) {
+  const visible = visibleData(data);
   const { ctx, width, height } = setupCanvas(canvases.rsi);
-  const rows = data.rows;
-  const left = width < 520 ? 34 : 42;
-  const right = width - 12;
-  const top = 10;
-  const bottom = height - 18;
-  ctx.clearRect(0, 0, width, height);
-  const yScale = { min: 0, max: 100, y(v) { return bottom - ((v - this.min) / (this.max - this.min)) * (bottom - top); } };
-  grid(ctx, width, height, left, right, top, bottom, yScale, width >= 420);
-  [30, 70].forEach((v) => {
-    ctx.strokeStyle = v === 70 ? "rgba(214,69,80,.55)" : "rgba(15,159,110,.55)";
-    ctx.beginPath();
-    ctx.moveTo(left, yScale.y(v));
-    ctx.lineTo(right, yScale.y(v));
-    ctx.stroke();
-  });
-  drawLine(ctx, data.indicators.rsi14, rows, "#154b7b", left, right, yScale, 1.6);
-}
-
-function drawMacd(data) {
-  const { ctx, width, height } = setupCanvas(canvases.macd);
-  const rows = data.rows;
+  const rows = visible.rows;
   const left = width < 520 ? 34 : 48;
   const right = width - 12;
   const top = 10;
   const bottom = height - 18;
   ctx.clearRect(0, 0, width, height);
-  const values = [...data.indicators.macd.line, ...data.indicators.macd.signal, ...data.indicators.macd.hist];
+  const yScale = { min: 0, max: 100, y(v) { return bottom - ((v - this.min) / (this.max - this.min)) * (bottom - top); } };
+  grid(ctx, width, left, right, top, bottom, yScale, width >= 420);
+  [30, 70].forEach((v) => {
+    ctx.strokeStyle = v === 70 ? "rgba(226,85,85,.6)" : "rgba(24,183,124,.6)";
+    ctx.beginPath();
+    ctx.moveTo(left, yScale.y(v));
+    ctx.lineTo(right, yScale.y(v));
+    ctx.stroke();
+  });
+  drawLine(ctx, visible.indicators.rsi14, rows, "#57a0ff", left, right, yScale, 1.6);
+}
+
+function drawMacd(data) {
+  const visible = visibleData(data);
+  const { ctx, width, height } = setupCanvas(canvases.macd);
+  const rows = visible.rows;
+  const left = width < 520 ? 34 : 48;
+  const right = width - 12;
+  const top = 10;
+  const bottom = height - 18;
+  ctx.clearRect(0, 0, width, height);
+  const values = [...visible.indicators.macd.line, ...visible.indicators.macd.signal, ...visible.indicators.macd.hist];
   const yScale = scaleY(values, top, bottom);
-  grid(ctx, width, height, left, right, top, bottom, yScale, width >= 420);
+  grid(ctx, width, left, right, top, bottom, yScale, width >= 420);
   const zeroY = yScale.y(0);
-  ctx.strokeStyle = "#98a2b3";
+  ctx.strokeStyle = "rgba(139, 153, 177, .6)";
   ctx.beginPath();
   ctx.moveTo(left, zeroY);
   ctx.lineTo(right, zeroY);
   ctx.stroke();
-  const barWidth = Math.max(2, Math.min(8, ((right - left) / rows.length) * 0.58));
-  data.indicators.macd.hist.forEach((v, i) => {
+  const barWidth = Math.max(2, Math.min(9, ((right - left) / rows.length) * 0.62));
+  visible.indicators.macd.hist.forEach((v, i) => {
     if (v == null) return;
     const x = left + (i / Math.max(rows.length - 1, 1)) * (right - left);
-    ctx.fillStyle = v >= 0 ? "rgba(214,69,80,.5)" : "rgba(15,159,110,.5)";
+    ctx.fillStyle = v >= 0 ? "rgba(226,85,85,.52)" : "rgba(24,183,124,.52)";
     ctx.fillRect(x - barWidth / 2, Math.min(zeroY, yScale.y(v)), barWidth, Math.abs(zeroY - yScale.y(v)));
   });
-  drawLine(ctx, data.indicators.macd.line, rows, "#2563eb", left, right, yScale, 1.4);
-  drawLine(ctx, data.indicators.macd.signal, rows, "#ea8a1f", left, right, yScale, 1.4);
+  drawLine(ctx, visible.indicators.macd.line, rows, "#57a0ff", left, right, yScale, 1.4);
+  drawLine(ctx, visible.indicators.macd.signal, rows, "#f6a641", left, right, yScale, 1.4);
+}
+
+function redrawCharts() {
+  if (!latestChartData) return;
+  drawPrice(latestChartData);
+  drawRsi(latestChartData);
+  drawMacd(latestChartData);
+  redrawAnnotations();
+}
+
+function redrawAnnotations() {
+  const canvas = canvases.draw;
+  if (!canvas) return;
+  const { ctx, width, height } = setupCanvas(canvas);
+  ctx.clearRect(0, 0, width, height);
+  const strokes = activeStroke ? [...drawingStrokes, activeStroke] : drawingStrokes;
+  strokes.forEach((stroke) => {
+    if (!stroke.points?.length) return;
+    ctx.strokeStyle = stroke.color || "#e25555";
+    ctx.lineWidth = stroke.width || 3;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    stroke.points.forEach((point, index) => {
+      const x = point.x * width;
+      const y = point.y * height;
+      if (index === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  });
+}
+
+function drawPointFromEvent(event) {
+  const rect = canvases.draw.getBoundingClientRect();
+  return {
+    x: Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)),
+    y: Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height)),
+  };
+}
+
+function setDrawingEnabled(enabled) {
+  drawEnabled = enabled;
+  document.body.classList.toggle("drawing-enabled", drawEnabled);
+  const button = document.getElementById("drawToggle");
+  if (button) button.textContent = drawEnabled ? "停止畫線" : "畫線";
+}
+
+function clearAnnotations() {
+  drawingStrokes.length = 0;
+  saveAnnotationsForStock();
+  redrawAnnotations();
+}
+
+function updateZoomLabel() {
+  const label = document.getElementById("zoomLabel");
+  if (label) label.textContent = `${chartZoom.toFixed(1)}x`;
+}
+
+function setChartZoom(next) {
+  chartZoom = Math.max(1, Math.min(8, next));
+  updateZoomLabel();
+  redrawCharts();
 }
 
 function crossedAbove(prevA, currentA, prevB, currentB) {
   return prevA != null && currentA != null && prevB != null && currentB != null && prevA <= prevB && currentA > currentB;
 }
 
-function average(values) {
+function crossedBelow(prevA, currentA, prevB, currentB) {
+  return prevA != null && currentA != null && prevB != null && currentB != null && prevA >= prevB && currentA < currentB;
+}
+
+function avg(values) {
   const clean = values.filter((value) => value != null && Number.isFinite(value));
   return clean.length ? clean.reduce((sum, value) => sum + value, 0) / clean.length : null;
 }
@@ -741,7 +572,7 @@ function analyzeEntrySignals(data) {
   const signals = [];
   const recent20 = rows.slice(Math.max(0, i - 20), i);
   const recent60 = rows.slice(Math.max(0, i - 60), i);
-  const avgVolume = average(recent20.map((row) => row.volume));
+  const avgVolume = avg(recent20.map((row) => row.volume));
   const low60 = Math.min(...recent60.map((row) => row.low));
   const high60 = Math.max(...recent60.map((row) => row.high));
   const range60 = high60 - low60 || last.close || 1;
@@ -755,49 +586,22 @@ function analyzeEntrySignals(data) {
   const changePct = prev ? (last.close - prev.close) / prev.close : 0;
   const isLongRedCandle = last.close > last.open && bodyRatio >= 0.55 && changePct >= 0.03;
 
-  if (isNearBottom) {
-    signals.push({ label: "位階接近 60 日低檔區", weight: 1 });
-  }
-  if (isVolumeBlast) {
-    signals.push({ label: `爆大量，約為 20 日均量 ${fmt.format(volumeRatio)} 倍`, weight: 3 });
-  }
-  if (isLongRedCandle) {
-    signals.push({ label: "長紅 K 棒，實體占比明顯", weight: 3 });
-  }
-  if (isNearBottom && isVolumeBlast && isLongRedCandle) {
-    signals.push({ label: "底部爆大量長紅 K 主訊號成立", weight: 4 });
-  }
-
-  if (crossedAbove(rows[i - 1]?.close, last.close, ma20[i - 1], ma20[i])) {
-    signals.push({ label: "收盤站上 MA20", weight: 1 });
-  }
-  if (crossedAbove(ma5[i - 1], ma5[i], ma20[i - 1], ma20[i])) {
-    signals.push({ label: "MA5 上穿 MA20", weight: 2 });
-  }
-  if (hist[i - 1] != null && hist[i] != null && hist[i - 1] <= 0 && hist[i] > 0) {
-    signals.push({ label: "MACD 柱狀體翻正", weight: 2 });
-  }
-  if (rsi14[i - 1] != null && rsi14[i] != null && rsi14[i - 1] < 50 && rsi14[i] >= 50) {
-    signals.push({ label: "RSI 轉強站回 50", weight: 1 });
-  }
-
+  if (isNearBottom) signals.push({ label: "接近 60 日低檔區", weight: 1 });
+  if (isVolumeBlast) signals.push({ label: `成交量為 20 日均量 ${fmt.format(volumeRatio)} 倍`, weight: 3 });
+  if (isLongRedCandle) signals.push({ label: "長紅 K 棒，實體強且漲幅大於 3%", weight: 3 });
+  if (isNearBottom && isVolumeBlast && isLongRedCandle) signals.push({ label: "底部爆大量且帶長紅 K 棒", weight: 5 });
+  if (crossedAbove(ma5[i - 1], ma5[i], ma20[i - 1], ma20[i])) signals.push({ label: "MA5 黃金交叉 MA20", weight: 2 });
+  if (hist[i - 1] != null && hist[i] != null && hist[i - 1] <= 0 && hist[i] > 0) signals.push({ label: "MACD 翻多", weight: 2 });
+  if (rsi14[i - 1] != null && rsi14[i] != null && rsi14[i - 1] < 50 && rsi14[i] >= 50) signals.push({ label: "RSI 站回 50", weight: 1 });
   const recentHigh = Math.max(...recent20.map((row) => row.high));
-  if (last.close > recentHigh && avgVolume != null && last.volume > avgVolume * 1.3) {
-    signals.push({ label: "帶量突破 20 日高點", weight: 1 });
-  } else if (last.close > recentHigh) {
-    signals.push({ label: "突破 20 日高點", weight: 1 });
-  }
-
-  if (ma20[i] != null && last.close > ma20[i] && prev?.close > ma20[i - 1]) {
-    signals.push({ label: "連續站穩 MA20", weight: 1 });
-  }
+  if (last.close > recentHigh && avgVolume != null && last.volume > avgVolume * 1.3) signals.push({ label: "放量突破 20 日高點", weight: 2 });
 
   const score = signals.reduce((sum, signal) => sum + signal.weight, 0);
   const support = Math.min(...rows.slice(-20).map((row) => row.low));
   const stopLoss = Math.min(support, ma20[i] || support);
   let state = "等待";
   let className = "entry-wait";
-  let message = "尚未出現底部爆大量長紅 K";
+  let message = "尚未符合底部爆大量長紅 K";
   if (isNearBottom && isVolumeBlast && isLongRedCandle) {
     state = "強訊號";
     className = "entry-strong";
@@ -805,9 +609,9 @@ function analyzeEntrySignals(data) {
   } else if (score >= 4 || (isVolumeBlast && isLongRedCandle)) {
     state = "觀察";
     className = "entry-watch";
-    message = "量能或長紅已出現，但底部條件尚未完整";
+    message = "量價有轉強跡象，但底部條件尚未完整";
   }
-  return { state, className, message, score, signals, stopLoss };
+  return { state, className, message, score, signals, stopLoss, checks: { isNearBottom, isVolumeBlast, isLongRedCandle } };
 }
 
 function renderEntrySignals(data) {
@@ -818,59 +622,242 @@ function renderEntrySignals(data) {
   status.textContent = `${result.state}，分數 ${result.score}`;
   const signalItems = result.signals.length
     ? result.signals.map((signal) => `<li>${escapeHtml(signal.label)}</li>`).join("")
-    : "<li>等待底部爆大量長紅 K</li>";
+    : "<li>尚未出現明確進場訊號</li>";
   list.innerHTML = `
     <div class="entry-card">
       <span class="entry-badge ${result.className}">${escapeHtml(result.state)}</span>
       <strong>${escapeHtml(result.message)}</strong>
-      <span>主訊號：底部 + 爆大量 + 長紅 K</span>
+      <span>核心條件：底部區、爆大量、長紅 K。</span>
     </div>
     <div class="entry-card">
-      <strong>觸發條件</strong>
+      <strong>觸發依據</strong>
       <ul>${signalItems}</ul>
     </div>
     <div class="entry-card">
-      <strong>風控參考</strong>
+      <strong>風險控管</strong>
       <span>參考停損：${fmt.format(result.stopLoss)}</span>
     </div>
   `;
-
   const notifyKey = `${data.stockNo}-${data.summary?.date || ""}-${result.score}`;
   if (notifyEnabled && result.score >= 4 && notifyKey !== lastEntryNotifyKey && "Notification" in window && Notification.permission === "granted") {
     lastEntryNotifyKey = notifyKey;
-    new Notification(`${data.stockNo} 進場強訊號`, { body: result.signals.map((signal) => signal.label).join("、") });
+    new Notification(`${data.stockNo} 進場訊號`, { body: result.signals.map((signal) => signal.label).join("、") });
   }
 }
 
-function updateNotifyButton() {
-  const button = document.getElementById("notifyToggle");
-  if (!button) return;
-  button.textContent = notifyEnabled ? "關閉提醒" : "開啟提醒";
+function renderSummary(data) {
+  const s = data.summary;
+  const cls = trendClass(s.change);
+  document.getElementById("chartTitle").textContent = `${data.stockNo} ${data.name || ""} 股票分析`;
+  document.getElementById("subtitle").textContent = data.title || `${data.stockNo} K 線與技術指標`;
+  document.getElementById("dataSourceLine").textContent = metaLine(data.metadata);
+  document.getElementById("summary").innerHTML = `
+    <div class="metric"><span>資料日期</span><strong>${escapeHtml(s.date)}</strong></div>
+    <div class="metric"><span>現價</span><strong>${fmt.format(s.close)}</strong></div>
+    <div class="metric"><span>漲跌幅</span><strong class="${cls}">${fmt.format(s.change)} / ${pct.format(s.changePct)}</strong></div>
+    <div class="metric"><span>MA20 / MA60</span><strong>${formatNumber(s.ma20)} / ${formatNumber(s.ma60)}</strong></div>
+    <div class="metric"><span>RSI / MACD</span><strong>${formatNumber(s.rsi14)} / ${formatNumber(s.macdHist)}</strong></div>
+    <div class="metric"><span>支撐 / 壓力</span><strong>${fmt.format(s.support)} / ${fmt.format(s.resistance)}</strong></div>
+    <div class="metric signal"><span>技術訊號</span><strong>${escapeHtml(s.signals.slice(0, 2).join("，") || "無明顯訊號")}</strong></div>
+  `;
+}
+
+function renderAiSummary(data) {
+  const el = document.getElementById("aiSummary");
+  if (!el) return;
+  const gradeClass = data.grade === "A" ? "grade-a" : data.grade === "B" ? "grade-b" : data.grade === "C" ? "grade-c" : "grade-d";
+  el.innerHTML = `
+    <div class="ai-main">
+      <div>
+        <span class="eyebrow">個股 AI 摘要</span>
+        <h2>${escapeHtml(data.stockNo)} ${escapeHtml(data.name)}｜${escapeHtml(data.trendStatus)}</h2>
+        <p>${escapeHtml(data.oneLineConclusion)}</p>
+      </div>
+      <div class="score-ring ${gradeClass}">
+        <strong>${data.aiScore}</strong>
+        <span>${escapeHtml(data.grade)} 級</span>
+      </div>
+    </div>
+    <div class="ai-columns">
+      <div>
+        <h3>值得注意原因</h3>
+        <ul>${data.noteworthy.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+      </div>
+      <div>
+        <h3>主要風險</h3>
+        <ul>${data.risks.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+      </div>
+      <div>
+        <h3>近期重要日期</h3>
+        <ul>${data.importantDates.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+      </div>
+    </div>
+    <div class="score-items">
+      ${data.scoreItems
+        .map(
+          (item) => `
+        <div class="score-item">
+          <div>
+            <strong>${escapeHtml(item.label)}</strong>
+            ${dataBadge(item.metadata)}
+          </div>
+          <span class="item-score">${item.score == null ? "未接入" : `${item.score} 分`}</span>
+          <p>${escapeHtml(item.basis)}</p>
+          <small>${escapeHtml(metaLine(item.metadata))}</small>
+        </div>
+      `,
+        )
+        .join("")}
+    </div>
+  `;
+}
+
+function renderStockRows(items, container, emptyText = "目前沒有符合條件的資料") {
+  if (!container) return;
+  if (!items?.length) {
+    container.innerHTML = `<div class="empty">${escapeHtml(emptyText)}</div>`;
+    return;
+  }
+  container.innerHTML = `
+    <div class="table-head">
+      <span>股票</span><span>現價</span><span>漲跌</span><span>AI</span><span>異動原因 / 風險</span><span>日期</span>
+    </div>
+    ${items
+      .map(
+        (item) => `
+      <button type="button" class="table-row" data-stock="${escapeHtml(item.stockNo)}">
+        <span><b>${escapeHtml(item.stockNo)}</b> ${escapeHtml(item.name)}</span>
+        <span>${formatNumber(item.price)}</span>
+        <span class="${trendClass(item.changePct || 0)}">${formatPct(item.changePct)}</span>
+        <span><b>${item.aiScore ?? "--"}</b></span>
+        <span>${escapeHtml(item.reason || "--")}<small>${escapeHtml(item.risk || "")}</small></span>
+        <span>${escapeHtml(item.dataDate || "--")}</span>
+      </button>
+    `,
+      )
+      .join("")}
+  `;
+}
+
+function renderCompactStocks(items, container, emptyText) {
+  if (!container) return;
+  if (!items?.length) {
+    container.innerHTML = `<div class="empty">${escapeHtml(emptyText || "目前沒有資料")}</div>`;
+    return;
+  }
+  container.innerHTML = items
+    .map(
+      (item) => `
+      <button type="button" class="compact-item" data-stock="${escapeHtml(item.stockNo)}">
+        <span><b>${escapeHtml(item.stockNo)}</b> ${escapeHtml(item.name)}</span>
+        <strong class="${trendClass(item.changePct || item.priceChangePct || 0)}">${formatPct(item.changePct ?? item.priceChangePct)}</strong>
+        <small>${escapeHtml(item.reason || item.tags?.join("、") || item.tech?.reason || "--")}</small>
+      </button>
+    `,
+    )
+    .join("");
+}
+
+function renderDashboardAlerts() {
+  const container = document.getElementById("dashboardAlerts");
+  if (!container) return;
+  const latest = alertHistory.slice(0, 6);
+  container.innerHTML = latest.length
+    ? latest.map((item) => `<div class="alert-item"><strong>${escapeHtml(item.stockNo)} ${escapeHtml(item.title)}</strong><span>${escapeHtml(item.message)}</span><small>${formatDateTime(item.createdAt)}</small></div>`).join("")
+    : `<div class="empty">尚無提醒紀錄。新增提醒後，觸發紀錄會保留在這裡。</div>`;
+}
+
+function renderDashboard(data) {
+  document.getElementById("dashboardMeta").textContent = `今日 ${data.today}｜最後更新 ${formatDateTime(data.fetchedAt)}｜價格資料日 ${data.lastUpdatedAt || "--"}`;
+  document.getElementById("topDate").textContent = `日期 ${data.today}`;
+  document.getElementById("topUpdated").textContent = `最後更新 ${formatDateTime(data.fetchedAt)}`;
+  const topStatus = document.getElementById("topStatus");
+  topStatus.textContent = data.dataStatus === "ok" ? "資料正常" : "資料部分可用";
+  topStatus.className = `status-pill ${data.dataStatus === "ok" ? "ok" : "stale"}`;
+  renderStockRows(data.noteworthyStocks, document.getElementById("noteworthyStocks"));
+  renderCompactStocks(data.revenueAnomalies, document.getElementById("revenueAnomalyList"), "目前沒有營收異常股票");
+  const inst = document.getElementById("institutionalAnomalyList");
+  inst.innerHTML = `<div class="empty"><strong>${escapeHtml(data.institutionalAnomalies.message)}</strong><small>${escapeHtml(metaLine(data.institutionalAnomalies.metadata))}</small></div>`;
+  renderCompactStocks(data.technicalBreakouts, document.getElementById("technicalBreakoutList"), "目前沒有技術突破股票");
+  const priceList = document.getElementById("priceEventList");
+  priceList.innerHTML = data.priceEvents?.length
+    ? data.priceEvents
+        .map(
+          (item) => `
+        <div class="compact-item no-click">
+          <span><b>${escapeHtml(item.item)}</b> ${escapeHtml(item.direction)}</span>
+          <strong class="${trendClass(item.changePct)}">${formatPct(item.changePct)}</strong>
+          <small>來源：${escapeHtml(item.source)}｜AI 推論：${escapeHtml(item.aiInference)}</small>
+        </div>
+      `,
+        )
+        .join("")
+    : `<div class="empty">目前沒有可讀取的產業報價事件</div>`;
+  document.getElementById("themeList").innerHTML = data.hotThemes
+    .map((item) => `<div class="theme-chip"><strong>${escapeHtml(item.theme)}</strong><span>${item.count} 檔｜均分 ${item.avgScore}</span></div>`)
+    .join("");
+  renderDashboardAlerts();
+}
+
+async function loadDashboard() {
+  const meta = document.getElementById("dashboardMeta");
+  if (meta) meta.textContent = "正在讀取今日市場資料";
+  const data = await fetchApi("/api/dashboard");
+  renderDashboard(data);
+}
+
+function renderRevenueRadar(data) {
+  const select = document.getElementById("revenueFilter");
+  if (select && !select.options.length) {
+    select.innerHTML = data.filters.map((filter) => `<option value="${escapeHtml(filter)}">${filter === "all" ? "全部條件" : escapeHtml(filter)}</option>`).join("");
+  }
+  document.getElementById("revenueRadarMeta").textContent = `更新 ${formatDateTime(data.fetchedAt)}｜${data.rows.length} 筆`;
+  const list = document.getElementById("revenueRadarList");
+  if (!data.rows.length) {
+    list.innerHTML = `<div class="empty">目前沒有符合條件的營收異常資料。</div>`;
+    return;
+  }
+  list.innerHTML = `
+    <div class="radar-head"><span>股票</span><span>月營收</span><span>年增</span><span>月增</span><span>條件</span><span>資料期</span></div>
+    ${data.rows
+      .map(
+        (row) => `
+      <button type="button" class="radar-row" data-stock="${escapeHtml(row.stockNo)}">
+        <span><b>${escapeHtml(row.stockNo)}</b> ${escapeHtml(row.name)}<small>${escapeHtml(row.industry)}</small></span>
+        <span>${moneyFmt.format(row.latestRevenue / 1000)} 千元</span>
+        <span class="${trendClass(row.yoy || 0)}">${formatPct(row.yoy)}</span>
+        <span class="${trendClass(row.mom || 0)}">${formatPct(row.mom)}</span>
+        <span>${escapeHtml(row.tags.join("、") || "--")}</span>
+        <span>${escapeHtml(row.dataDate)}</span>
+      </button>
+    `,
+      )
+      .join("")}
+  `;
+}
+
+async function loadRevenueRadar(filter = document.getElementById("revenueFilter")?.value || "all") {
+  document.getElementById("revenueRadarMeta").textContent = "正在讀取營收雷達";
+  const data = await fetchApi("/api/revenue-radar", { filter });
+  renderRevenueRadar(data);
 }
 
 function renderIndustryQuotes(data) {
   const status = document.getElementById("quoteStatus");
   const list = document.getElementById("industryQuotes");
-  if (!status || !list) return;
-  status.textContent = `${data.items.length} 項，更新 ${new Date(data.fetchedAt).toLocaleString("zh-TW")}`;
+  status.textContent = `${data.items.length} 筆｜更新 ${formatDateTime(data.fetchedAt)}｜${data.note}`;
   list.innerHTML = data.items
     .map((item) => {
       if (item.error) {
-        return `
-          <div class="quote-card">
-            <small>${escapeHtml(item.group)}</small>
-            <strong>${escapeHtml(item.name)}</strong>
-            <span>${escapeHtml(item.symbol)} 暫時無法讀取</span>
-          </div>
-        `;
+        return `<div class="quote-card"><small>${escapeHtml(item.group)}</small><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.symbol)} 讀取失敗</span><small>${escapeHtml(item.error)}</small></div>`;
       }
-      const trendClass = item.change >= 0 ? "up" : "down";
       return `
         <div class="quote-card">
           <small>${escapeHtml(item.group)} / ${escapeHtml(item.note)}</small>
           <strong>${escapeHtml(item.name)} ${escapeHtml(item.symbol)}</strong>
-          <span>最新 ${fmt.format(item.price)}，<b class="${trendClass}">${fmt.format(item.change)} / ${pct.format(item.changePct)}</b></span>
-          <span>${escapeHtml(item.date)} · ${escapeHtml(item.type === "proxy" ? "代理指標" : "現貨")}</span>
+          <span>價格 ${formatNumber(item.price)}｜<b class="${trendClass(item.change)}">${formatNumber(item.change)} / ${formatPct(item.changePct)}</b></span>
+          <span>${escapeHtml(item.date)}｜代理指標</span>
+          ${dataBadge(item.metadata)}
           <button type="button" data-quote-stock="${escapeHtml(item.symbol)}">看 K 線</button>
         </div>
       `;
@@ -879,68 +866,157 @@ function renderIndustryQuotes(data) {
 }
 
 async function loadIndustryQuotes() {
-  const status = document.getElementById("quoteStatus");
-  if (status) status.textContent = "讀取報價中";
-  const key = new URLSearchParams(location.search).get("key") || "";
-  const response = await fetch(`/api/industry-quotes?key=${encodeURIComponent(key)}`);
-  const data = await response.json();
-  if (!response.ok || data.error) throw new Error(data.error || "報價讀取失敗");
+  document.getElementById("quoteStatus").textContent = "正在讀取產業報價";
+  const data = await fetchApi("/api/industry-quotes");
   renderIndustryQuotes(data);
 }
 
-function renderSummary(data) {
-  const s = data.summary;
-  const trendClass = s.change >= 0 ? "up" : "down";
-  document.getElementById("chartTitle").textContent = `${data.stockNo} 技術線圖`;
-  document.getElementById("subtitle").textContent = data.title || "輸入股票代號，查看 K 線、均線、RSI、MACD 與布林通道。";
-  document.getElementById("summary").innerHTML = `
-    <div class="metric"><span>日期</span><strong>${s.date}</strong></div>
-    <div class="metric"><span>收盤價</span><strong>${fmt.format(s.close)}</strong></div>
-    <div class="metric"><span>漲跌幅</span><strong class="${trendClass}">${fmt.format(s.change)} / ${pct.format(s.changePct)}</strong></div>
-    <div class="metric"><span>MA20 / MA60</span><strong>${fmt.format(s.ma20 || 0)} / ${fmt.format(s.ma60 || 0)}</strong></div>
-    <div class="metric"><span>RSI / MACD</span><strong>${fmt.format(s.rsi14 || 0)} / ${fmt.format(s.macdHist || 0)}</strong></div>
-    <div class="metric"><span>支撐 / 壓力</span><strong>${fmt.format(s.support)} / ${fmt.format(s.resistance)}</strong></div>
-    <div class="metric signal"><span>訊號</span><strong>${escapeHtml(s.signals.slice(0, 2).join(" ") || "資料尚未形成明顯訊號")}</strong></div>
-  `;
+function alertTypeLabel(type) {
+  const labels = {
+    price_above: "股價突破",
+    price_below: "跌破價格",
+    ma_golden: "均線黃金交叉",
+    ma_death: "均線死亡交叉",
+    rsi_overbought: "RSI 超買",
+    rsi_oversold: "RSI 超賣",
+    macd_bull: "MACD 翻多",
+    macd_bear: "MACD 翻空",
+    volume_spike: "成交量放大",
+    revenue_publish: "月營收公告",
+    keyword: "新聞關鍵字",
+    quote_change: "產業報價變動",
+  };
+  return labels[type] || type;
 }
 
-async function load() {
+function renderAlerts() {
+  const rules = document.getElementById("alertRules");
+  const history = document.getElementById("alertHistory");
+  if (rules) {
+    rules.innerHTML = alertRules.length
+      ? alertRules
+          .map(
+            (rule) => `
+          <div class="alert-item">
+            <strong>${escapeHtml(rule.stockNo)} ${escapeHtml(alertTypeLabel(rule.type))}</strong>
+            <span>門檻：${escapeHtml(rule.value || "系統判斷")}｜${rule.enabled ? "啟用" : "停用"}</span>
+            <small>${formatDateTime(rule.createdAt)}</small>
+            <button type="button" data-remove-alert="${escapeHtml(rule.id)}">移除</button>
+          </div>
+        `,
+          )
+          .join("")
+      : `<div class="empty">尚未設定提醒規則。</div>`;
+  }
+  if (history) {
+    history.innerHTML = alertHistory.length
+      ? alertHistory
+          .slice(0, 30)
+          .map((item) => `<div class="alert-item"><strong>${escapeHtml(item.stockNo)} ${escapeHtml(item.title)}</strong><span>${escapeHtml(item.message)}</span><small>${formatDateTime(item.createdAt)}</small></div>`)
+          .join("")
+      : `<div class="empty">尚無觸發紀錄。</div>`;
+  }
+  renderDashboardAlerts();
+}
+
+function addAlertHistory(entry) {
+  const key = `${entry.stockNo}-${entry.ruleId}-${entry.dataDate || ""}-${entry.title}`;
+  if (alertHistory.some((item) => item.key === key)) return;
+  alertHistory.unshift({ ...entry, key, createdAt: new Date().toISOString() });
+  alertHistory = alertHistory.slice(0, 120);
+  saveJson(alertHistoryKey, alertHistory);
+  renderAlerts();
+}
+
+function evaluateAlert(rule, data) {
+  const rows = data.rows;
+  const i = rows.length - 1;
+  const last = rows[i];
+  const prev = rows[i - 1];
+  const ma5 = data.indicators.ma5;
+  const ma20 = data.indicators.ma20;
+  const rsi14 = data.indicators.rsi14;
+  const hist = data.indicators.macd.hist;
+  const value = Number(rule.value);
+  const avgVol = avg(rows.slice(-21, -1).map((row) => row.volume));
+  const checks = {
+    price_above: Number.isFinite(value) && last.close >= value,
+    price_below: Number.isFinite(value) && last.close <= value,
+    ma_golden: crossedAbove(ma5[i - 1], ma5[i], ma20[i - 1], ma20[i]),
+    ma_death: crossedBelow(ma5[i - 1], ma5[i], ma20[i - 1], ma20[i]),
+    rsi_overbought: rsi14[i] != null && rsi14[i] >= (Number.isFinite(value) ? value : 70),
+    rsi_oversold: rsi14[i] != null && rsi14[i] <= (Number.isFinite(value) ? value : 30),
+    macd_bull: hist[i - 1] != null && hist[i] != null && hist[i - 1] <= 0 && hist[i] > 0,
+    macd_bear: hist[i - 1] != null && hist[i] != null && hist[i - 1] >= 0 && hist[i] < 0,
+    volume_spike: avgVol != null && last.volume / avgVol >= (Number.isFinite(value) ? value : 2),
+  };
+  if (!checks[rule.type]) return;
+  addAlertHistory({
+    ruleId: rule.id,
+    stockNo: data.stockNo,
+    title: alertTypeLabel(rule.type),
+    message: `${data.name || data.stockNo} 於 ${last.date} 觸發：現價 ${fmt.format(last.close)}，前日 ${prev ? fmt.format(prev.close) : "--"}`,
+    dataDate: last.date,
+  });
+}
+
+function evaluateAlertsForStock(data) {
+  alertRules.filter((rule) => rule.enabled && rule.stockNo === data.stockNo).forEach((rule) => evaluateAlert(rule, data));
+}
+
+async function loadAiSummary(stockNo) {
+  const el = document.getElementById("aiSummary");
+  if (el) el.innerHTML = `<div class="loading">正在產生 AI 摘要</div>`;
+  const data = await fetchApi("/api/ai-summary", { stockNo });
+  renderAiSummary(data);
+}
+
+async function loadStock() {
   const stockNo = document.getElementById("stockNo").value.trim() || "2330";
   const months = document.getElementById("months").value;
-  const key = new URLSearchParams(location.search).get("key") || "";
   const status = document.getElementById("status");
-  status.textContent = "讀取上市/上櫃行情中";
-  const response = await fetch(`/api/twse?stockNo=${encodeURIComponent(stockNo)}&months=${months}&key=${encodeURIComponent(key)}`);
-  const data = await response.json();
-  if (!response.ok || data.error) throw new Error(data.error || "讀取失敗");
+  status.textContent = "讀取交易資料中";
+  status.className = "status-pill";
+  const [stockData] = await Promise.all([fetchApi("/api/twse", { stockNo, months }), loadAiSummary(stockNo).catch((error) => {
+    const el = document.getElementById("aiSummary");
+    if (el) el.innerHTML = `<div class="empty">AI 摘要讀取失敗：${escapeHtml(error.message)}</div>`;
+  })]);
   if (currentLoadedStock && currentLoadedStock !== stockNo) saveAnnotationsForStock(currentLoadedStock);
   currentLoadedStock = stockNo;
   loadAnnotationsForStock(stockNo);
-  latestChartData = data;
+  latestChartData = stockData;
   chartZoom = 1;
-  renderSummary(data);
-  renderEntrySignals(data);
+  updateZoomLabel();
+  renderSummary(stockData);
+  renderEntrySignals(stockData);
   renderWatchlist();
   redrawCharts();
-  status.textContent = `資料來源：${data.source}，更新時間 ${new Date(data.fetchedAt).toLocaleString("zh-TW")}`;
+  evaluateAlertsForStock(stockData);
+  status.textContent = `資料完成｜${stockData.source}｜${formatDateTime(stockData.fetchedAt)}`;
+  status.className = `status-pill ${isStale(stockData.fetchedAt) ? "stale" : "ok"}`;
 }
 
-document.getElementById("queryForm").addEventListener("submit", (event) => {
+document.getElementById("queryForm")?.addEventListener("submit", (event) => {
   event.preventDefault();
-  load().catch((error) => {
-    document.getElementById("status").textContent = error.message;
+  loadStock().catch((error) => {
+    const status = document.getElementById("status");
+    status.textContent = error.message;
+    status.className = "status-pill stale";
+  });
+});
+
+document.getElementById("dashboardRefresh")?.addEventListener("click", () => {
+  loadDashboard().catch((error) => {
+    document.getElementById("dashboardMeta").textContent = error.message;
   });
 });
 
 document.getElementById("watchForm")?.addEventListener("submit", (event) => {
   event.preventDefault();
-  addWatchItem(
-    document.getElementById("watchStock").value,
-    document.getElementById("watchName").value,
-    document.getElementById("watchIndustry").value,
-  );
+  addWatchItem(document.getElementById("watchStock").value, document.getElementById("watchName").value, document.getElementById("watchIndustry").value);
   document.getElementById("watchStock").value = "";
   document.getElementById("watchName").value = "";
+  document.getElementById("watchIndustry").value = "";
 });
 
 document.getElementById("industryTabs")?.addEventListener("click", (event) => {
@@ -952,35 +1028,38 @@ document.getElementById("industryTabs")?.addEventListener("click", (event) => {
     return;
   }
   const subButton = event.target.closest("[data-sub-industry]");
-  if (!subButton) return;
-  selectedSubIndustry = subButton.dataset.subIndustry;
-  renderWatchlist();
+  if (subButton) {
+    selectedSubIndustry = subButton.dataset.subIndustry;
+    renderWatchlist();
+  }
 });
 
-document.getElementById("watchList")?.addEventListener("click", (event) => {
-  const removeTarget = event.target.closest("[data-remove]");
-  if (removeTarget) {
+document.body.addEventListener("click", (event) => {
+  const removeWatch = event.target.closest("[data-remove]");
+  if (removeWatch) {
+    event.preventDefault();
     event.stopPropagation();
-    watchlist = watchlist.filter((item) => item.stockNo !== removeTarget.dataset.remove);
+    watchlist = watchlist.filter((item) => item.stockNo !== removeWatch.dataset.remove);
     saveWatchlist();
     renderWatchlist();
     return;
   }
-
-  const card = event.target.closest("[data-stock]");
-  if (!card) return;
-  document.getElementById("stockNo").value = card.dataset.stock;
-  renderWatchlist();
-  load().catch((error) => {
-    document.getElementById("status").textContent = error.message;
-  });
+  const stockTarget = event.target.closest("[data-stock]");
+  if (stockTarget) {
+    document.getElementById("stockNo").value = stockTarget.dataset.stock;
+    location.hash = "#analysis";
+    loadStock().catch((error) => {
+      document.getElementById("status").textContent = error.message;
+    });
+  }
 });
 
 document.getElementById("industryQuotes")?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-quote-stock]");
   if (!button) return;
   document.getElementById("stockNo").value = button.dataset.quoteStock;
-  load().catch((error) => {
+  location.hash = "#analysis";
+  loadStock().catch((error) => {
     document.getElementById("status").textContent = error.message;
   });
 });
@@ -991,25 +1070,44 @@ document.getElementById("quoteRefresh")?.addEventListener("click", () => {
   });
 });
 
-document.getElementById("drawToggle")?.addEventListener("click", () => {
-  setDrawingEnabled(!drawEnabled);
+document.getElementById("revenueFilter")?.addEventListener("change", (event) => {
+  loadRevenueRadar(event.target.value).catch((error) => {
+    document.getElementById("revenueRadarMeta").textContent = error.message;
+  });
 });
 
-document.getElementById("drawClear")?.addEventListener("click", () => {
-  clearAnnotations();
+document.getElementById("alertForm")?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const stockNo = document.getElementById("alertStock").value.trim() || document.getElementById("stockNo").value.trim();
+  if (!stockNo) return;
+  alertRules.unshift({
+    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    stockNo,
+    type: document.getElementById("alertType").value,
+    value: document.getElementById("alertValue").value.trim(),
+    enabled: true,
+    createdAt: new Date().toISOString(),
+  });
+  saveJson(alertRulesKey, alertRules);
+  document.getElementById("alertStock").value = "";
+  document.getElementById("alertValue").value = "";
+  renderAlerts();
+  if (latestChartData?.stockNo === stockNo) evaluateAlertsForStock(latestChartData);
 });
 
-document.getElementById("zoomIn")?.addEventListener("click", () => {
-  setChartZoom(chartZoom * 1.5);
+document.getElementById("alertRules")?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-remove-alert]");
+  if (!button) return;
+  alertRules = alertRules.filter((rule) => rule.id !== button.dataset.removeAlert);
+  saveJson(alertRulesKey, alertRules);
+  renderAlerts();
 });
 
-document.getElementById("zoomOut")?.addEventListener("click", () => {
-  setChartZoom(chartZoom / 1.5);
-});
-
-document.getElementById("zoomReset")?.addEventListener("click", () => {
-  setChartZoom(1);
-});
+document.getElementById("drawToggle")?.addEventListener("click", () => setDrawingEnabled(!drawEnabled));
+document.getElementById("drawClear")?.addEventListener("click", clearAnnotations);
+document.getElementById("zoomIn")?.addEventListener("click", () => setChartZoom(chartZoom * 1.5));
+document.getElementById("zoomOut")?.addEventListener("click", () => setChartZoom(chartZoom / 1.5));
+document.getElementById("zoomReset")?.addEventListener("click", () => setChartZoom(1));
 
 document.getElementById("notifyToggle")?.addEventListener("click", async () => {
   if (!notifyEnabled && "Notification" in window && Notification.permission === "default") {
@@ -1024,12 +1122,17 @@ document.getElementById("notifyToggle")?.addEventListener("click", async () => {
   updateNotifyButton();
 });
 
+function updateNotifyButton() {
+  const button = document.getElementById("notifyToggle");
+  if (button) button.textContent = notifyEnabled ? "關閉通知" : "開啟通知";
+}
+
 canvases.draw?.addEventListener("pointerdown", (event) => {
   if (!drawEnabled) return;
   event.preventDefault();
   canvases.draw.setPointerCapture?.(event.pointerId);
   activeStroke = {
-    color: document.getElementById("drawColor")?.value || "#d64550",
+    color: document.getElementById("drawColor")?.value || "#e25555",
     width: Number(document.getElementById("drawWidth")?.value || 3),
     points: [drawPointFromEvent(event)],
   };
@@ -1056,20 +1159,33 @@ canvases.draw?.addEventListener("pointerup", finishActiveStroke);
 canvases.draw?.addEventListener("pointercancel", finishActiveStroke);
 canvases.draw?.addEventListener("pointerleave", finishActiveStroke);
 
-document.querySelector(".draw-surface")?.addEventListener("wheel", (event) => {
-  if (!latestChartData) return;
-  event.preventDefault();
-  setChartZoom(event.deltaY < 0 ? chartZoom * 1.15 : chartZoom / 1.15);
-}, { passive: false });
+document.querySelector(".draw-surface")?.addEventListener(
+  "wheel",
+  (event) => {
+    if (!latestChartData) return;
+    event.preventDefault();
+    setChartZoom(event.deltaY < 0 ? chartZoom * 1.15 : chartZoom / 1.15);
+  },
+  { passive: false },
+);
 
 window.addEventListener("resize", () => redrawCharts());
+
 updateNotifyButton();
 updateZoomLabel();
 renderWatchlist();
-loadIndustryQuotes().catch((error) => {
-  const status = document.getElementById("quoteStatus");
-  if (status) status.textContent = error.message;
+renderAlerts();
+loadDashboard().catch((error) => {
+  document.getElementById("dashboardMeta").textContent = error.message;
 });
-load().catch((error) => {
-  document.getElementById("status").textContent = error.message;
+loadRevenueRadar().catch((error) => {
+  document.getElementById("revenueRadarMeta").textContent = error.message;
+});
+loadIndustryQuotes().catch((error) => {
+  document.getElementById("quoteStatus").textContent = error.message;
+});
+loadStock().catch((error) => {
+  const status = document.getElementById("status");
+  status.textContent = error.message;
+  status.className = "status-pill stale";
 });

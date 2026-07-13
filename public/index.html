@@ -3,145 +3,286 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>台股技術分析</title>
-    <link rel="stylesheet" href="./styles.css?v=grouped-industries-1" />
+    <title>台股 AI 研究平台</title>
+    <link rel="stylesheet" href="./styles.css?v=phase1-ai-platform" />
   </head>
   <body>
-    <main class="app-shell">
-      <header class="topbar">
-        <div>
-          <h1>台股技術分析</h1>
-          <p id="subtitle">輸入股票代號，查看 K 線、均線、RSI、MACD 與布林通道。</p>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="brand">
+          <strong>台股 AI</strong>
+          <span>研究平台</span>
         </div>
-        <form id="queryForm" class="query">
-          <label>
-            股票代號
-            <input id="stockNo" value="2330" inputmode="numeric" autocomplete="off" />
-          </label>
-          <label>
-            區間
-            <select id="months">
-              <option value="6">6 個月</option>
-              <option value="12" selected>12 個月</option>
-              <option value="24">24 個月</option>
-              <option value="36">36 個月</option>
-            </select>
-          </label>
-          <button type="submit">查詢</button>
-        </form>
-      </header>
+        <nav class="side-nav">
+          <a href="#dashboard">首頁</a>
+          <a href="#analysis">股票分析</a>
+          <a href="#marketRadar">市場雷達</a>
+          <a href="#revenueRadar">營收異常</a>
+          <a href="#industryCenter">產業題材</a>
+          <a href="#priceTracker">漲價追蹤</a>
+          <a href="#watchPanel">自選股</a>
+          <a href="#alertCenter">提醒中心</a>
+          <a href="#aiQa">AI 問答</a>
+          <a href="#systemStatus">系統設定</a>
+        </nav>
+      </aside>
 
-      <section class="watch-panel">
-        <div class="watch-head">
-          <div>
-            <h2>自選與族群</h2>
-            <span>可依產業族群切換，也可新增自己的觀察名單。</span>
-          </div>
-          <form id="watchForm" class="watch-form">
-            <input id="watchStock" placeholder="股票代號" inputmode="numeric" autocomplete="off" />
-            <input id="watchName" placeholder="名稱，可不填" autocomplete="off" />
-            <select id="watchIndustry">
-              <option value="台積電供應鏈 / 建廠廠務設備">台積電供應鏈 / 建廠廠務設備</option>
-              <option value="台積電供應鏈 / 特化材料">台積電供應鏈 / 特化材料</option>
-              <option value="台積電供應鏈 / 晶圓代工">台積電供應鏈 / 晶圓代工</option>
-              <option value="記憶體">記憶體</option>
-              <option value="被動元件">被動元件</option>
-              <option value="功率元件">功率元件</option>
-              <option value="ABF 載板">ABF 載板</option>
-              <option value="玻璃基板 / 面板玻璃">玻璃基板 / 面板玻璃</option>
-              <option value="玻璃基板 / 設備材料">玻璃基板 / 設備材料</option>
-              <option value="銅箔基板 / CCL">銅箔基板 / CCL</option>
-              <option value="半導體材料 / 矽晶圓">半導體材料 / 矽晶圓</option>
-              <option value="半導體材料 / 化學材料">半導體材料 / 化學材料</option>
-              <option value="原物料 / 漲價波動">原物料 / 漲價波動</option>
-              <option value="IC 設計">IC 設計</option>
-              <option value="小型股 / 題材觀察">小型股 / 題材觀察</option>
-              <option value="電子代工">電子代工</option>
-              <option value="金融保險">金融保險</option>
-              <option value="航運">航運</option>
-              <option value="其他">其他</option>
-            </select>
-            <button type="submit">加入</button>
+      <main class="main">
+        <header class="topbar">
+          <form id="queryForm" class="query">
+            <label>
+              股票搜尋
+              <input id="stockNo" value="2330" inputmode="numeric" autocomplete="off" />
+            </label>
+            <label>
+              區間
+              <select id="months">
+                <option value="6">6 個月</option>
+                <option value="12" selected>12 個月</option>
+                <option value="24">24 個月</option>
+                <option value="36">36 個月</option>
+              </select>
+            </label>
+            <button type="submit">查詢</button>
           </form>
-        </div>
-        <div class="industry-tabs" id="industryTabs"></div>
-        <div class="watch-list" id="watchList"></div>
-      </section>
-
-      <section class="quote-panel">
-        <div class="quote-head">
-          <div>
-            <h2>產業報價與原物料波動</h2>
-            <span id="quoteStatus">讀取報價中</span>
+          <div class="market-strip">
+            <span id="topDate">日期 --</span>
+            <span id="topUpdated">最後更新 --</span>
+            <span id="topStatus" class="status-pill stale">資料狀態確認中</span>
           </div>
-          <button type="button" id="quoteRefresh">更新報價</button>
-        </div>
-        <div class="quote-list" id="industryQuotes"></div>
-      </section>
+        </header>
 
-      <section class="summary-grid" id="summary"></section>
+        <section id="dashboard" class="section dashboard-section">
+          <div class="section-head">
+            <div>
+              <h1>首頁儀表板</h1>
+              <p id="dashboardMeta">正在讀取今日市場資料</p>
+            </div>
+            <button type="button" id="dashboardRefresh">更新首頁</button>
+          </div>
 
-      <section class="entry-panel" id="entryPanel">
-        <div class="entry-head">
-          <div>
-            <h2>進場訊號</h2>
-            <span id="entryStatus">等待資料</span>
-          </div>
-          <button type="button" id="notifyToggle">開啟提醒</button>
-        </div>
-        <div class="entry-grid" id="entrySignals"></div>
-      </section>
+          <div class="dashboard-grid">
+            <article class="panel panel-large">
+              <div class="panel-head">
+                <h2>今日值得注意股票</h2>
+                <span>AI 綜合評分排序</span>
+              </div>
+              <div id="noteworthyStocks" class="stock-table"></div>
+            </article>
 
-      <section class="chart-panel">
-        <div class="chart-head">
-          <div>
-            <h2 id="chartTitle">技術線圖</h2>
-            <span id="status">準備讀取</span>
-          </div>
-          <div class="legend">
-            <span><i class="ma5"></i>MA5</span>
-            <span><i class="ma20"></i>MA20</span>
-            <span><i class="ma60"></i>MA60</span>
-            <span><i class="boll"></i>BOLL</span>
-          </div>
-        </div>
-        <div class="draw-toolbar">
-          <button type="button" id="drawToggle">畫線</button>
-          <label>
-            顏色
-            <input id="drawColor" type="color" value="#d64550" />
-          </label>
-          <label>
-            粗細
-            <input id="drawWidth" type="range" min="1" max="8" value="3" />
-          </label>
-          <button type="button" id="drawClear">清除標記</button>
-          <button type="button" id="zoomOut">縮小</button>
-          <span class="zoom-label" id="zoomLabel">1x</span>
-          <button type="button" id="zoomIn">放大</button>
-          <button type="button" id="zoomReset">重設</button>
-        </div>
-        <div class="draw-surface">
-          <canvas id="priceChart" height="340"></canvas>
-          <canvas id="drawCanvas" height="340"></canvas>
-        </div>
-      </section>
+            <article class="panel">
+              <div class="panel-head">
+                <h2>營收異常排行榜</h2>
+                <span>月營收條件偵測</span>
+              </div>
+              <div id="revenueAnomalyList" class="compact-list"></div>
+            </article>
 
-      <div class="lower-grid">
-        <section class="chart-panel">
-          <div class="chart-head">
-            <h2>RSI 14</h2>
+            <article class="panel">
+              <div class="panel-head">
+                <h2>法人買賣異常</h2>
+                <span>資料狀態</span>
+              </div>
+              <div id="institutionalAnomalyList" class="compact-list"></div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head">
+                <h2>技術面突破</h2>
+                <span>近 60 日突破</span>
+              </div>
+              <div id="technicalBreakoutList" class="compact-list"></div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head">
+                <h2>產業漲價與缺貨消息</h2>
+                <span>代理指標與 AI 推論分開</span>
+              </div>
+              <div id="priceEventList" class="compact-list"></div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head">
+                <h2>熱門投資題材</h2>
+                <span>站內題材熱度</span>
+              </div>
+              <div id="themeList" class="theme-list"></div>
+            </article>
+
+            <article class="panel panel-wide">
+              <div class="panel-head">
+                <h2>自選股重要提醒</h2>
+                <span>依本機提醒規則保留紀錄</span>
+              </div>
+              <div id="dashboardAlerts" class="alert-feed"></div>
+            </article>
           </div>
-          <canvas id="rsiChart" height="170"></canvas>
         </section>
-        <section class="chart-panel">
-          <div class="chart-head">
-            <h2>MACD</h2>
+
+        <section id="analysis" class="section">
+          <div class="section-head">
+            <div>
+              <h1 id="chartTitle">股票分析</h1>
+              <p id="subtitle">K 線、MA5、MA20、MA60、布林通道、RSI、MACD、畫線與進場訊號</p>
+            </div>
+            <span id="status" class="status-pill">等待資料</span>
           </div>
-          <canvas id="macdChart" height="170"></canvas>
+
+          <section id="aiSummary" class="ai-card"></section>
+          <section class="summary-grid" id="summary"></section>
+
+          <section class="entry-panel" id="entryPanel">
+            <div class="panel-head">
+              <h2>進場訊號</h2>
+              <span id="entryStatus">等待資料</span>
+              <button type="button" id="notifyToggle">開啟通知</button>
+            </div>
+            <div class="entry-grid" id="entrySignals"></div>
+          </section>
+
+          <section class="chart-panel">
+            <div class="chart-head">
+              <div class="legend">
+                <span><i class="ma5"></i>MA5</span>
+                <span><i class="ma20"></i>MA20</span>
+                <span><i class="ma60"></i>MA60</span>
+                <span><i class="boll"></i>BOLL</span>
+              </div>
+              <span id="dataSourceLine">資料來源 --</span>
+            </div>
+            <div class="draw-toolbar">
+              <button type="button" id="drawToggle">畫線</button>
+              <label>
+                顏色
+                <input id="drawColor" type="color" value="#e25555" />
+              </label>
+              <label>
+                線寬
+                <input id="drawWidth" type="range" min="1" max="8" value="3" />
+              </label>
+              <button type="button" id="drawClear">清除畫線</button>
+              <button type="button" id="zoomOut">縮小</button>
+              <span class="zoom-label" id="zoomLabel">1x</span>
+              <button type="button" id="zoomIn">放大</button>
+              <button type="button" id="zoomReset">重設</button>
+            </div>
+            <div class="draw-surface">
+              <canvas id="priceChart" height="360"></canvas>
+              <canvas id="drawCanvas" height="360"></canvas>
+            </div>
+          </section>
+
+          <div class="lower-grid">
+            <section class="chart-panel">
+              <div class="chart-head"><h2>RSI 14</h2></div>
+              <canvas id="rsiChart" height="180"></canvas>
+            </section>
+            <section class="chart-panel">
+              <div class="chart-head"><h2>MACD</h2></div>
+              <canvas id="macdChart" height="180"></canvas>
+            </section>
+          </div>
         </section>
-      </div>
-    </main>
-    <script src="./app.js?v=grouped-industries-1"></script>
+
+        <section id="watchPanel" class="section panel">
+          <div class="panel-head watch-head">
+            <div>
+              <h2>自選股與產業族群</h2>
+              <span>大分類 / 子分類篩選，資料保留在本機</span>
+            </div>
+            <form id="watchForm" class="watch-form">
+              <input id="watchStock" placeholder="股票代號" inputmode="numeric" autocomplete="off" />
+              <input id="watchName" placeholder="公司名稱" autocomplete="off" />
+              <input id="watchIndustry" placeholder="大分類 / 子分類" autocomplete="off" />
+              <button type="submit">加入</button>
+            </form>
+          </div>
+          <div class="industry-tabs" id="industryTabs"></div>
+          <div class="watch-list" id="watchList"></div>
+        </section>
+
+        <section id="revenueRadar" class="section panel">
+          <div class="panel-head">
+            <div>
+              <h2>營收異常雷達</h2>
+              <span id="revenueRadarMeta">可依條件篩選</span>
+            </div>
+            <select id="revenueFilter"></select>
+          </div>
+          <div id="revenueRadarList" class="radar-table"></div>
+        </section>
+
+        <section id="priceTracker" class="section panel">
+          <div class="panel-head">
+            <div>
+              <h2>產業報價與原物料波動</h2>
+              <span id="quoteStatus">等待讀取</span>
+            </div>
+            <button type="button" id="quoteRefresh">更新報價</button>
+          </div>
+          <div class="quote-list" id="industryQuotes"></div>
+        </section>
+
+        <section id="alertCenter" class="section panel">
+          <div class="panel-head">
+            <div>
+              <h2>提醒中心</h2>
+              <span>提醒規則與觸發紀錄會保留</span>
+            </div>
+          </div>
+          <form id="alertForm" class="alert-form">
+            <input id="alertStock" placeholder="股票代號" inputmode="numeric" autocomplete="off" />
+            <select id="alertType">
+              <option value="price_above">股價突破</option>
+              <option value="price_below">跌破價格</option>
+              <option value="ma_golden">均線黃金交叉</option>
+              <option value="ma_death">均線死亡交叉</option>
+              <option value="rsi_overbought">RSI 超買</option>
+              <option value="rsi_oversold">RSI 超賣</option>
+              <option value="macd_bull">MACD 翻多</option>
+              <option value="macd_bear">MACD 翻空</option>
+              <option value="volume_spike">成交量放大</option>
+              <option value="revenue_publish">月營收公告</option>
+              <option value="keyword">新聞關鍵字</option>
+              <option value="quote_change">產業報價變動</option>
+            </select>
+            <input id="alertValue" placeholder="門檻/關鍵字，可留空" autocomplete="off" />
+            <button type="submit">新增提醒</button>
+          </form>
+          <div class="alert-columns">
+            <div>
+              <h3>提醒規則</h3>
+              <div id="alertRules" class="alert-feed"></div>
+            </div>
+            <div>
+              <h3>提醒紀錄</h3>
+              <div id="alertHistory" class="alert-feed"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="marketRadar" class="section panel placeholder-panel">
+          <h2>市場雷達</h2>
+          <p>第一階段先以首頁、營收雷達與技術突破提供市場掃描。完整法人與市值篩選會在後續資料源接入後補上。</p>
+        </section>
+
+        <section id="industryCenter" class="section panel placeholder-panel">
+          <h2>產業題材中心</h2>
+          <p>第二階段會擴成 AI Server、800VDC、HVDC、MOSFET、SiC、GaN、BBU、CPO、玻璃基板、ABF、再生晶圓、石英元件、HDD、記憶體、半導體材料與原物料漲價的題材頁。</p>
+        </section>
+
+        <section id="aiQa" class="section panel placeholder-panel">
+          <h2>AI 問答</h2>
+          <p>第三階段接入可引用站內資料與日期的問答，不知道的資料會明確回答不知道。</p>
+        </section>
+
+        <section id="systemStatus" class="section panel placeholder-panel">
+          <h2>系統設定與資料可信度</h2>
+          <p>每個新資料區塊已開始保留 data_source、published_at、fetched_at、reporting_period、is_estimated、confidence、source_url。</p>
+        </section>
+      </main>
+    </div>
+    <script src="./app.js?v=phase1-ai-platform"></script>
   </body>
 </html>
