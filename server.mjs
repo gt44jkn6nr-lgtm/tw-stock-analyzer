@@ -15,6 +15,112 @@ const mime = {
   ".json": "application/json; charset=utf-8",
 };
 
+const twseStockDayUrl = "https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY";
+const tpexTradingStockUrl = "https://www.tpex.org.tw/www/zh-tw/afterTrading/tradingStock";
+const finMindUrl = "https://api.finmindtrade.com/api/v4/data";
+
+const stockUniverse = [
+  { stockNo: "2330", name: "台積電", industry: "半導體 / 晶圓代工", marketCap: "large" },
+  { stockNo: "2303", name: "聯電", industry: "半導體 / 晶圓代工", marketCap: "large" },
+  { stockNo: "2404", name: "漢唐", industry: "台積電供應鏈 / 建廠廠務設備", marketCap: "mid" },
+  { stockNo: "6139", name: "亞翔", industry: "台積電供應鏈 / 建廠廠務設備", marketCap: "mid" },
+  { stockNo: "5536", name: "聖暉*", industry: "台積電供應鏈 / 建廠廠務設備", marketCap: "mid" },
+  { stockNo: "4763", name: "材料-KY", industry: "半導體材料 / 特化", marketCap: "mid" },
+  { stockNo: "4768", name: "晶呈科技", industry: "半導體材料 / 特化", marketCap: "small" },
+  { stockNo: "4770", name: "上品", industry: "半導體材料 / 耗材", marketCap: "small" },
+  { stockNo: "6488", name: "環球晶", industry: "半導體材料 / 矽晶圓", marketCap: "large" },
+  { stockNo: "5483", name: "中美晶", industry: "半導體材料 / 矽晶圓", marketCap: "mid" },
+  { stockNo: "6182", name: "合晶", industry: "半導體材料 / 矽晶圓", marketCap: "small" },
+  { stockNo: "2344", name: "華邦電", industry: "記憶體 / DRAM Flash", marketCap: "large" },
+  { stockNo: "2408", name: "南亞科", industry: "記憶體 / DRAM", marketCap: "large" },
+  { stockNo: "2337", name: "旺宏", industry: "記憶體 / NOR Flash", marketCap: "mid" },
+  { stockNo: "2329", name: "華泰", industry: "記憶體 / 封測", marketCap: "small" },
+  { stockNo: "8299", name: "群聯", industry: "記憶體 / 控制 IC", marketCap: "mid" },
+  { stockNo: "2327", name: "國巨", industry: "被動元件 / MLCC", marketCap: "large" },
+  { stockNo: "2492", name: "華新科", industry: "被動元件 / MLCC", marketCap: "mid" },
+  { stockNo: "3026", name: "禾伸堂", industry: "被動元件 / MLCC", marketCap: "small" },
+  { stockNo: "2478", name: "大毅", industry: "被動元件 / 電阻", marketCap: "small" },
+  { stockNo: "6173", name: "信昌電", industry: "被動元件 / MLCC", marketCap: "small" },
+  { stockNo: "2481", name: "強茂", industry: "功率元件 / 二極體", marketCap: "mid" },
+  { stockNo: "5425", name: "台半", industry: "功率元件 / MOSFET", marketCap: "small" },
+  { stockNo: "2342", name: "茂矽", industry: "功率元件 / MOSFET", marketCap: "small" },
+  { stockNo: "3707", name: "漢磊", industry: "功率元件 / SiC GaN", marketCap: "small" },
+  { stockNo: "8255", name: "朋程", industry: "功率元件 / 車用功率", marketCap: "small" },
+  { stockNo: "3037", name: "欣興", industry: "PCB / ABF 載板", marketCap: "large" },
+  { stockNo: "3189", name: "景碩", industry: "PCB / ABF 載板", marketCap: "mid" },
+  { stockNo: "8046", name: "南電", industry: "PCB / ABF 載板", marketCap: "mid" },
+  { stockNo: "2383", name: "台光電", industry: "PCB / 銅箔基板 CCL", marketCap: "large" },
+  { stockNo: "6274", name: "台燿", industry: "PCB / 銅箔基板 CCL", marketCap: "mid" },
+  { stockNo: "6213", name: "聯茂", industry: "PCB / 銅箔基板 CCL", marketCap: "mid" },
+  { stockNo: "8358", name: "金居", industry: "PCB / 銅箔", marketCap: "small" },
+  { stockNo: "1802", name: "台玻", industry: "玻璃基板 / 玻璃材料", marketCap: "mid" },
+  { stockNo: "3481", name: "群創", industry: "玻璃基板 / 面板與玻璃加工", marketCap: "large" },
+  { stockNo: "3149", name: "正達", industry: "玻璃基板 / 玻璃加工", marketCap: "small" },
+  { stockNo: "6207", name: "雷科", industry: "玻璃基板 / 設備", marketCap: "small" },
+  { stockNo: "1809", name: "中釉", industry: "玻璃基板 / 薄膜材料", marketCap: "small" },
+  { stockNo: "4976", name: "佳凌", industry: "玻璃基板 / 光學玻璃", marketCap: "small" },
+  { stockNo: "2382", name: "廣達", industry: "AI Server / ODM", marketCap: "large" },
+  { stockNo: "3231", name: "緯創", industry: "AI Server / ODM", marketCap: "large" },
+  { stockNo: "6669", name: "緯穎", industry: "AI Server / ODM", marketCap: "large" },
+  { stockNo: "3017", name: "奇鋐", industry: "AI Server / 散熱", marketCap: "large" },
+  { stockNo: "3324", name: "雙鴻", industry: "AI Server / 散熱", marketCap: "mid" },
+  { stockNo: "3653", name: "健策", industry: "AI Server / 機構散熱", marketCap: "mid" },
+  { stockNo: "2308", name: "台達電", industry: "AI Server / 電源 BBU", marketCap: "large" },
+  { stockNo: "6412", name: "群電", industry: "AI Server / 電源", marketCap: "mid" },
+  { stockNo: "3455", name: "由田", industry: "半導體設備 / AOI", marketCap: "small" },
+  { stockNo: "4908", name: "前鼎", industry: "CPO / 光通訊", marketCap: "small" },
+  { stockNo: "3163", name: "波若威", industry: "CPO / 光通訊", marketCap: "small" },
+  { stockNo: "3363", name: "上詮", industry: "CPO / 光通訊", marketCap: "small" },
+  { stockNo: "1513", name: "中興電", industry: "800VDC HVDC / 電力設備", marketCap: "mid" },
+  { stockNo: "1519", name: "華城", industry: "800VDC HVDC / 重電", marketCap: "mid" },
+  { stockNo: "1605", name: "華新", industry: "原物料 / 銅與線纜", marketCap: "large" },
+  { stockNo: "2002", name: "中鋼", industry: "原物料 / 鋼鐵", marketCap: "large" },
+  { stockNo: "1303", name: "南亞", industry: "原物料 / 樹脂與 CCL 上游", marketCap: "large" },
+  { stockNo: "2603", name: "長榮", industry: "景氣循環 / 航運", marketCap: "large" },
+];
+
+const dashboardUniverse = [
+  "2330",
+  "2404",
+  "6139",
+  "4763",
+  "6488",
+  "2344",
+  "2408",
+  "2327",
+  "2481",
+  "5425",
+  "3037",
+  "2383",
+  "1802",
+  "3481",
+  "2382",
+  "3231",
+  "3017",
+  "2308",
+  "1519",
+  "1605",
+];
+
+const stockMap = new Map(stockUniverse.map((item) => [item.stockNo, item]));
+
+const industryQuoteItems = [
+  { group: "貴金屬", name: "黃金", symbol: "00635U", note: "黃金 ETF 代理指標" },
+  { group: "貴金屬", name: "白銀", symbol: "00738U", note: "白銀 ETF 代理指標" },
+  { group: "能源與化工", name: "原油", symbol: "00763U", note: "原油 ETF 代理指標" },
+  { group: "金屬", name: "鋼鐵", symbol: "2002", note: "中鋼作為鋼價景氣代理" },
+  { group: "食品原物料", name: "咖啡與民生物資", symbol: "1216", note: "統一作為民生物資代理" },
+  { group: "橡膠", name: "橡膠輪胎", symbol: "2105", note: "正新作為橡膠景氣代理" },
+  { group: "半導體材料", name: "矽晶圓", symbol: "6488", note: "環球晶作為矽晶圓代理" },
+  { group: "半導體材料", name: "再生晶圓", symbol: "5483", note: "中美晶作為材料代理" },
+  { group: "半導體材料", name: "特化材料", symbol: "4763", note: "材料-KY 作為特化代理" },
+  { group: "PCB 材料", name: "銅箔", symbol: "8358", note: "金居作為銅箔代理" },
+  { group: "PCB 材料", name: "銅箔基板", symbol: "2383", note: "台光電作為 CCL 代理" },
+  { group: "被動元件", name: "MLCC", symbol: "2327", note: "國巨作為 MLCC 代理" },
+  { group: "記憶體", name: "DRAM", symbol: "2408", note: "南亞科作為 DRAM 代理" },
+  { group: "功率元件", name: "MOSFET", symbol: "5425", note: "台半作為功率元件代理" },
+];
+
 const toYYYYMMDD = (d) =>
   `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
 const toYYYYSlashMMDD = (d) =>
@@ -33,10 +139,39 @@ const parseNumber = (value) => {
   return Number.isFinite(n) ? n : null;
 };
 
+const safePct = (value) => (Number.isFinite(value) ? value : null);
+
 const parseTaiwanDate = (value) => {
   const [rocYear, month, day] = String(value).split("/").map(Number);
   return `${rocYear + 1911}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 };
+
+const sourceMeta = ({
+  data_source,
+  published_at = null,
+  fetched_at = new Date().toISOString(),
+  reporting_period = null,
+  is_estimated = false,
+  confidence = 0.7,
+  source_url = null,
+} = {}) => ({
+  data_source,
+  published_at,
+  fetched_at,
+  reporting_period,
+  is_estimated,
+  confidence,
+  source_url,
+});
+
+function assertAccess(url, res) {
+  if (accessToken && url.searchParams.get("key") !== accessToken) {
+    res.writeHead(401, { "content-type": "application/json; charset=utf-8" });
+    res.end(JSON.stringify({ error: "Access key required" }));
+    return false;
+  }
+  return true;
+}
 
 function sma(values, period) {
   const out = Array(values.length).fill(null);
@@ -55,11 +190,8 @@ function ema(values, period) {
   let prev = null;
   for (let i = 0; i < values.length; i++) {
     const value = values[i];
-    if (prev == null) {
-      prev = value;
-    } else {
-      prev = value * k + prev * (1 - k);
-    }
+    if (prev == null) prev = value;
+    else prev = value * k + prev * (1 - k);
     out[i] = i >= period - 1 ? prev : null;
   }
   return out;
@@ -84,9 +216,7 @@ function rsi(values, period = 14) {
       avgGain = (avgGain * (period - 1) + gain) / period;
       avgLoss = (avgLoss * (period - 1) + loss) / period;
     }
-    if (i >= period) {
-      out[i] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
-    }
+    if (i >= period) out[i] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
   }
   return out;
 }
@@ -148,14 +278,14 @@ function summarize(rows, indicators) {
   const macdHist = indicators.macd.hist[i];
   const signals = [];
 
-  if (ma20 != null && last.close > ma20) signals.push("收盤價站上 20 日均線，短線偏強");
-  if (ma20 != null && last.close < ma20) signals.push("收盤價跌破 20 日均線，短線偏弱");
-  if (ma60 != null && last.close > ma60) signals.push("股價站上 60 日均線，中期趨勢偏多");
-  if (ma60 != null && last.close < ma60) signals.push("股價跌破 60 日均線，中期趨勢偏空");
-  if (rsi14 != null && rsi14 >= 70) signals.push("RSI 高於 70，短線偏熱");
-  if (rsi14 != null && rsi14 <= 30) signals.push("RSI 低於 30，短線偏冷");
-  if (macdHist != null && macdHist > 0) signals.push("MACD 柱狀體為正，多方動能延續");
-  if (macdHist != null && macdHist < 0) signals.push("MACD 柱狀體為負，空方動能延續");
+  if (ma20 != null && last.close > ma20) signals.push("收盤站上 MA20，短線偏多");
+  if (ma20 != null && last.close < ma20) signals.push("收盤跌破 MA20，短線偏弱");
+  if (ma60 != null && last.close > ma60) signals.push("股價站上 MA60，中期趨勢較穩");
+  if (ma60 != null && last.close < ma60) signals.push("股價低於 MA60，中期仍需觀察");
+  if (rsi14 != null && rsi14 >= 70) signals.push("RSI 高於 70，短線過熱");
+  if (rsi14 != null && rsi14 <= 30) signals.push("RSI 低於 30，短線超賣");
+  if (macdHist != null && macdHist > 0) signals.push("MACD 柱狀體為正，多方動能占優");
+  if (macdHist != null && macdHist < 0) signals.push("MACD 柱狀體為負，空方動能占優");
 
   const highs = rows.slice(-60).map((r) => r.high);
   const lows = rows.slice(-60).map((r) => r.low);
@@ -174,50 +304,40 @@ function summarize(rows, indicators) {
   };
 }
 
-async function fetchTwseMonth(stockNo, date) {
-  const url = new URL("https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY");
-  url.searchParams.set("date", toYYYYMMDD(date));
-  url.searchParams.set("stockNo", stockNo);
-  url.searchParams.set("response", "json");
+async function fetchJson(url) {
   const response = await fetch(url, {
     headers: {
-      "user-agent": "Mozilla/5.0 stock-analysis-local-tool",
+      "user-agent": "Mozilla/5.0 tw-stock-ai-research-platform",
       accept: "application/json",
     },
   });
-  if (!response.ok) throw new Error(`TWSE HTTP ${response.status}`);
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return response.json();
 }
 
+async function fetchTwseMonth(stockNo, date) {
+  const url = new URL(twseStockDayUrl);
+  url.searchParams.set("date", toYYYYMMDD(date));
+  url.searchParams.set("stockNo", stockNo);
+  url.searchParams.set("response", "json");
+  return fetchJson(url);
+}
+
 async function fetchTpexMonth(stockNo, date) {
-  const url = new URL("https://www.tpex.org.tw/www/zh-tw/afterTrading/tradingStock");
+  const url = new URL(tpexTradingStockUrl);
   url.searchParams.set("code", stockNo);
   url.searchParams.set("date", toYYYYSlashMMDD(date));
   url.searchParams.set("response", "json");
-  const response = await fetch(url, {
-    headers: {
-      "user-agent": "Mozilla/5.0 stock-analysis-local-tool",
-      accept: "application/json",
-    },
-  });
-  if (!response.ok) throw new Error(`TPEx HTTP ${response.status}`);
-  return response.json();
+  return fetchJson(url);
 }
 
 async function fetchFinMind(stockNo, months) {
   const start = addMonths(new Date(), -(months + 1));
-  const url = new URL("https://api.finmindtrade.com/api/v4/data");
+  const url = new URL(finMindUrl);
   url.searchParams.set("dataset", "TaiwanStockPrice");
   url.searchParams.set("data_id", stockNo);
   url.searchParams.set("start_date", start.toISOString().slice(0, 10));
-  const response = await fetch(url, {
-    headers: {
-      "user-agent": "Mozilla/5.0 stock-analysis-local-tool",
-      accept: "application/json",
-    },
-  });
-  if (!response.ok) throw new Error(`FinMind HTTP ${response.status}`);
-  return response.json();
+  return fetchJson(url);
 }
 
 function twseRows(result) {
@@ -284,7 +404,46 @@ async function findLatestAvailableMonth(stockNo, fetcher, rowParser) {
     const result = await fetcher(stockNo, date).catch(() => null);
     if (rowParser(result).length) return date;
   }
-  throw new Error("找不到可用行情資料，請確認股票代號是否正確。");
+  throw new Error("找不到可用的交易資料月份");
+}
+
+function buildStockPayload(stockNo, title, market, source, rows, sourceUrl) {
+  const cleanRows = rows
+    .filter((r) => r.open != null && r.high != null && r.low != null && r.close != null)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const uniqueRows = [...new Map(cleanRows.map((r) => [r.date, r])).values()];
+  if (uniqueRows.length < 35) throw new Error("交易資料不足，無法計算技術指標");
+  const analysisRows = latestContinuousPriceSegment(uniqueRows);
+  const closes = analysisRows.map((r) => r.close);
+  const indicators = {
+    ma5: sma(closes, 5),
+    ma20: sma(closes, 20),
+    ma60: sma(closes, 60),
+    rsi14: rsi(closes, 14),
+    bollinger: bollinger(closes, 20, 2),
+    macd: macd(closes),
+  };
+  const meta = stockMap.get(stockNo);
+  return {
+    stockNo,
+    name: meta?.name || stockNo,
+    industry: meta?.industry || "未分類",
+    title,
+    market,
+    source,
+    fetchedAt: new Date().toISOString(),
+    rows: analysisRows,
+    indicators,
+    summary: summarize(analysisRows, indicators),
+    metadata: sourceMeta({
+      data_source: source,
+      published_at: analysisRows.at(-1)?.date || null,
+      reporting_period: analysisRows.at(-1)?.date || null,
+      is_estimated: false,
+      confidence: 0.9,
+      source_url: sourceUrl,
+    }),
+  };
 }
 
 async function fetchStockFromMarket(stockNo, months, market) {
@@ -304,64 +463,14 @@ async function fetchStockFromMarket(stockNo, months, market) {
     if (result.tables?.[0]?.subtitle) title = result.tables[0].subtitle;
     rows.push(...rowParser(result));
   }
-  const cleanRows = rows
-    .filter((r) => r.open != null && r.high != null && r.low != null && r.close != null)
-    .sort((a, b) => a.date.localeCompare(b.date));
-  const uniqueRows = [...new Map(cleanRows.map((r) => [r.date, r])).values()];
-  if (uniqueRows.length < 35) {
-    throw new Error("行情資料不足，請確認股票代號是否正確或拉長查詢月份。");
-  }
-  const analysisRows = latestContinuousPriceSegment(uniqueRows);
-  const closes = analysisRows.map((r) => r.close);
-  const indicators = {
-    ma5: sma(closes, 5),
-    ma20: sma(closes, 20),
-    ma60: sma(closes, 60),
-    rsi14: rsi(closes, 14),
-    bollinger: bollinger(closes, 20, 2),
-    macd: macd(closes),
-  };
-  return {
-    stockNo,
-    title,
-    market: market === "tpex" ? "TPEx" : "TWSE",
-    source: market === "tpex" ? "TPEx tradingStock" : "TWSE STOCK_DAY",
-    fetchedAt: new Date().toISOString(),
-    rows: analysisRows,
-    indicators,
-    summary: summarize(analysisRows, indicators),
-  };
+  const source = market === "tpex" ? "TPEx tradingStock" : "TWSE STOCK_DAY";
+  const sourceUrl = market === "tpex" ? tpexTradingStockUrl : twseStockDayUrl;
+  return buildStockPayload(stockNo, title, market === "tpex" ? "TPEx" : "TWSE", source, rows, sourceUrl);
 }
 
 async function fetchStockFromFinMind(stockNo, months) {
   const result = await fetchFinMind(stockNo, months);
-  const cleanRows = finMindRows(result)
-    .filter((r) => r.open != null && r.high != null && r.low != null && r.close != null)
-    .sort((a, b) => a.date.localeCompare(b.date));
-  const uniqueRows = [...new Map(cleanRows.map((r) => [r.date, r])).values()];
-  if (uniqueRows.length < 35) {
-    throw new Error("FinMind 行情資料不足，請確認股票代號是否正確或拉長查詢月份。");
-  }
-  const analysisRows = latestContinuousPriceSegment(uniqueRows);
-  const closes = analysisRows.map((r) => r.close);
-  const indicators = {
-    ma5: sma(closes, 5),
-    ma20: sma(closes, 20),
-    ma60: sma(closes, 60),
-    rsi14: rsi(closes, 14),
-    bollinger: bollinger(closes, 20, 2),
-    macd: macd(closes),
-  };
-  return {
-    stockNo,
-    title: `${stockNo} 日成交資訊`,
-    market: "TW",
-    source: "FinMind TaiwanStockPrice",
-    fetchedAt: new Date().toISOString(),
-    rows: analysisRows,
-    indicators,
-    summary: summarize(analysisRows, indicators),
-  };
+  return buildStockPayload(stockNo, `${stockNo} 交易資料`, "TW", "FinMind TaiwanStockPrice", finMindRows(result), finMindUrl);
 }
 
 async function fetchStock(stockNo, months = 12) {
@@ -384,25 +493,183 @@ async function fetchStock(stockNo, months = 12) {
   }
 }
 
-let industryQuoteCache = null;
-let industryQuoteCacheAt = 0;
+function parseRevenueRows(result) {
+  const rows = [];
+  for (const item of result?.data || []) {
+    const year = item.revenue_year ?? item.year;
+    const month = item.revenue_month ?? item.month;
+    const date =
+      item.date ||
+      (year && month ? `${year}-${String(month).padStart(2, "0")}-01` : item.reporting_period || null);
+    const revenue = parseNumber(item.revenue ?? item.Revenue ?? item.monthly_revenue);
+    if (!date || revenue == null) continue;
+    rows.push({
+      date,
+      revenue,
+      reporting_period: date.slice(0, 7),
+      published_at: item.date || date,
+    });
+  }
+  return rows.sort((a, b) => a.date.localeCompare(b.date));
+}
 
-const industryQuoteItems = [
-  { group: "貴金屬", name: "黃金", symbol: "00635U", note: "黃金 ETF 代理" },
-  { group: "貴金屬", name: "白銀", symbol: "00738U", note: "白銀 ETF 代理" },
-  { group: "基本金屬", name: "銅", symbol: "00763U", note: "銅 ETF 代理" },
-  { group: "基本金屬", name: "鋼鐵/鐵礦", symbol: "2002", note: "中鋼，鋼鐵景氣代理" },
-  { group: "農產品", name: "咖啡/食品通膨", symbol: "1216", note: "統一，食品成本代理" },
-  { group: "農產品", name: "咖啡/食品通膨", symbol: "1227", note: "佳格，食品成本代理" },
-  { group: "橡膠", name: "輪胎/橡膠", symbol: "2105", note: "正新，橡膠成本代理" },
-  { group: "橡膠", name: "輪胎/橡膠", symbol: "2103", note: "台橡，合成橡膠代理" },
-  { group: "半導體材料", name: "矽晶圓", symbol: "6488", note: "環球晶" },
-  { group: "半導體材料", name: "矽晶圓", symbol: "5483", note: "中美晶" },
-  { group: "半導體材料", name: "化學材料", symbol: "1773", note: "勝一" },
-  { group: "電子材料", name: "銅箔", symbol: "8358", note: "金居，銅箔代理" },
-];
+async function fetchRevenue(stockNo, years = 4) {
+  const start = addMonths(new Date(), -(years * 12 + 2)).toISOString().slice(0, 10);
+  const url = new URL(finMindUrl);
+  url.searchParams.set("dataset", "TaiwanStockMonthRevenue");
+  url.searchParams.set("data_id", stockNo);
+  url.searchParams.set("start_date", start);
+  const result = await fetchJson(url);
+  const rows = parseRevenueRows(result);
+  if (!rows.length) throw new Error("查無月營收資料");
+  const byPeriod = new Map(rows.map((row) => [row.reporting_period, row]));
+  return rows.map((row, index) => {
+    const [year, month] = row.reporting_period.split("-").map(Number);
+    const previousMonth = rows[index - 1];
+    const previousYear = byPeriod.get(`${year - 1}-${String(month).padStart(2, "0")}`);
+    return {
+      ...row,
+      mom: previousMonth ? row.revenue / previousMonth.revenue - 1 : null,
+      yoy: previousYear ? row.revenue / previousYear.revenue - 1 : null,
+    };
+  });
+}
 
-function quoteFromStockData(item, data) {
+function analyzeRevenue(rows) {
+  if (!rows?.length) return null;
+  const latest = rows.at(-1);
+  const maxAll = Math.max(...rows.map((row) => row.revenue));
+  const recent36 = rows.slice(-36);
+  const max36 = Math.max(...recent36.map((row) => row.revenue));
+  const last3 = rows.slice(-3);
+  const consecutiveYoy = last3.length === 3 && last3.every((row) => row.yoy != null && row.yoy > 0);
+  const ytd = rows.filter((row) => row.reporting_period.slice(0, 4) === latest.reporting_period.slice(0, 4));
+  const prevYtd = rows.filter((row) => {
+    const [year, month] = row.reporting_period.split("-").map(Number);
+    const [latestYear, latestMonth] = latest.reporting_period.split("-").map(Number);
+    return year === latestYear - 1 && month <= latestMonth;
+  });
+  const ytdRevenue = ytd.reduce((sum, row) => sum + row.revenue, 0);
+  const prevYtdRevenue = prevYtd.reduce((sum, row) => sum + row.revenue, 0);
+  const ytdYoy = prevYtdRevenue ? ytdRevenue / prevYtdRevenue - 1 : null;
+  const tags = [];
+  if (latest.revenue >= maxAll) tags.push("月營收創歷史新高");
+  if (latest.revenue >= max36) tags.push("月營收創近三年新高");
+  if (consecutiveYoy) tags.push("連續三個月年增");
+  if (latest.yoy != null && latest.yoy > 0.2) tags.push("年增率大於 20%");
+  if (latest.mom != null && latest.mom > 0.2) tags.push("月增率大於 20%");
+  if (ytdYoy != null && ytdYoy > 0) tags.push("累計營收轉正");
+  return { latest, tags, ytdYoy };
+}
+
+function average(values) {
+  const clean = values.filter((value) => value != null && Number.isFinite(value));
+  return clean.length ? clean.reduce((sum, value) => sum + value, 0) / clean.length : null;
+}
+
+function technicalSnapshot(data) {
+  const rows = data.rows;
+  const i = rows.length - 1;
+  const last = rows[i];
+  const prev = rows[i - 1];
+  const ma20 = data.indicators.ma20[i];
+  const ma60 = data.indicators.ma60[i];
+  const rsi14 = data.indicators.rsi14[i];
+  const hist = data.indicators.macd.hist[i];
+  const avg20Vol = average(rows.slice(-21, -1).map((row) => row.volume));
+  const recentHigh = Math.max(...rows.slice(-61, -1).map((row) => row.high));
+  const volumeRatio = avg20Vol ? last.volume / avg20Vol : null;
+  const breakout = last.close > recentHigh && (volumeRatio == null || volumeRatio >= 1.2);
+  let score = 50;
+  if (ma20 != null && last.close > ma20) score += 10;
+  if (ma60 != null && last.close > ma60) score += 10;
+  if (hist != null && hist > 0) score += 10;
+  if (rsi14 != null && rsi14 > 50 && rsi14 < 75) score += 8;
+  if (breakout) score += 12;
+  if (rsi14 != null && rsi14 >= 80) score -= 8;
+  if (prev && last.close < prev.close && volumeRatio != null && volumeRatio > 1.5) score -= 8;
+  return {
+    score: Math.max(0, Math.min(100, Math.round(score))),
+    breakout,
+    volumeRatio,
+    reason: breakout ? "收盤突破近 60 日高點且量能放大" : data.summary.signals[0] || "技術面無明顯突破訊號",
+  };
+}
+
+function buildScoreItem(label, score, basis, meta) {
+  return { label, score, basis, metadata: meta };
+}
+
+function buildAiSummary(stockData, revenueRows) {
+  const tech = technicalSnapshot(stockData);
+  const revenue = analyzeRevenue(revenueRows);
+  const priceMeta = stockData.metadata;
+  const revenueMeta = revenue?.latest
+    ? sourceMeta({
+        data_source: "FinMind TaiwanStockMonthRevenue",
+        published_at: revenue.latest.published_at,
+        reporting_period: revenue.latest.reporting_period,
+        is_estimated: false,
+        confidence: 0.82,
+        source_url: finMindUrl,
+      })
+    : sourceMeta({
+        data_source: "尚未取得",
+        is_estimated: false,
+        confidence: 0,
+        source_url: null,
+      });
+
+  const revenueScore =
+    revenue?.latest?.yoy == null ? 50 : Math.max(20, Math.min(95, Math.round(50 + revenue.latest.yoy * 100)));
+  const industryScore = stockData.industry.includes("AI") || stockData.industry.includes("半導體") ? 70 : 55;
+  const items = [
+    buildScoreItem(
+      "營收成長",
+      revenue ? revenueScore : null,
+      revenue
+        ? `最新月營收 ${revenue.latest.reporting_period}，年增 ${revenue.latest.yoy == null ? "無去年同期" : `${(revenue.latest.yoy * 100).toFixed(1)}%`}，月增 ${revenue.latest.mom == null ? "無前月" : `${(revenue.latest.mom * 100).toFixed(1)}%`}`
+        : "目前未取得月營收資料",
+      revenueMeta,
+    ),
+    buildScoreItem("EPS 與獲利", null, "第一階段尚未接入季財報 EPS 資料源，分數不納入總分", sourceMeta({ data_source: "未接入", confidence: 0 })),
+    buildScoreItem("毛利率", null, "第一階段尚未接入財報毛利率資料源，分數不納入總分", sourceMeta({ data_source: "未接入", confidence: 0 })),
+    buildScoreItem("法人籌碼", null, "第一階段尚未接入三大法人買賣超資料源，分數不納入總分", sourceMeta({ data_source: "未接入", confidence: 0 })),
+    buildScoreItem("技術面", tech.score, tech.reason, priceMeta),
+    buildScoreItem("新聞與題材", null, "第一階段不抓新聞全文，避免把市場傳聞當成公告", sourceMeta({ data_source: "未接入", confidence: 0 })),
+    buildScoreItem("產業景氣", industryScore, `依目前站內產業分類：${stockData.industry}，屬題材熱度代理分數`, sourceMeta({ data_source: "站內產業分類", is_estimated: true, confidence: 0.45 })),
+    buildScoreItem("估值", null, "第一階段尚未接入本益比與股價淨值比，分數不納入總分", sourceMeta({ data_source: "未接入", confidence: 0 })),
+  ];
+  const scored = items.filter((item) => typeof item.score === "number");
+  const total = scored.length ? Math.round(scored.reduce((sum, item) => sum + item.score, 0) / scored.length) : 0;
+  const grade = total >= 80 ? "A" : total >= 65 ? "B" : total >= 50 ? "C" : "D";
+  const trendStatus = tech.score >= 65 ? "偏多" : tech.score <= 40 ? "偏空" : "中性";
+  const noteworthy = [];
+  if (revenue?.tags?.length) noteworthy.push(...revenue.tags);
+  if (tech.breakout) noteworthy.push("技術面突破");
+  if (!noteworthy.length) noteworthy.push("目前沒有明確異常訊號，適合放入觀察名單");
+  const risks = [];
+  if (stockData.summary.rsi14 != null && stockData.summary.rsi14 >= 75) risks.push("RSI 偏高，短線可能過熱");
+  if (stockData.summary.close < stockData.summary.ma60) risks.push("股價仍低於 MA60，中期趨勢未完全轉強");
+  if (!revenue) risks.push("營收資料未取得，基本面判斷信心較低");
+  if (!risks.length) risks.push("資料源仍未涵蓋法人、估值與財報細項，需搭配公告確認");
+  return {
+    stockNo: stockData.stockNo,
+    name: stockData.name,
+    aiScore: total,
+    grade,
+    trendStatus,
+    oneLineConclusion: `${stockData.name} 目前 AI 綜合評分 ${total}，技術趨勢${trendStatus}，${noteworthy[0]}。`,
+    noteworthy,
+    risks,
+    importantDates: revenue?.latest ? [`最近月營收資料期：${revenue.latest.reporting_period}`] : ["最近月營收資料期：尚未取得"],
+    scoreItems: items,
+    metadata: sourceMeta({ data_source: "站內模型彙整", is_estimated: true, confidence: scored.length >= 3 ? 0.65 : 0.45 }),
+  };
+}
+
+async function quoteFromStockData(item) {
+  const data = await fetchStockFromFinMind(item.symbol, 3);
   const last = data.rows.at(-1);
   const prev = data.rows.at(-2);
   const change = prev ? last.close - prev.close : 0;
@@ -413,10 +680,20 @@ function quoteFromStockData(item, data) {
     change,
     changePct,
     date: last.date,
-    source: data.source,
     type: "proxy",
+    metadata: sourceMeta({
+      data_source: data.source,
+      published_at: last.date,
+      reporting_period: last.date,
+      is_estimated: false,
+      confidence: 0.72,
+      source_url: finMindUrl,
+    }),
   };
 }
+
+let industryQuoteCache = null;
+let industryQuoteCacheAt = 0;
 
 async function fetchIndustryQuotes() {
   const now = Date.now();
@@ -424,20 +701,168 @@ async function fetchIndustryQuotes() {
   const items = await Promise.all(
     industryQuoteItems.map(async (item) => {
       try {
-        const data = await fetchStock(item.symbol, 3);
-        return quoteFromStockData(item, data);
+        return await quoteFromStockData(item);
       } catch (error) {
-        return { ...item, error: String(error.message || error), type: "proxy" };
+        return {
+          ...item,
+          error: String(error.message || error),
+          type: "proxy",
+          metadata: sourceMeta({ data_source: "代理指標讀取失敗", confidence: 0 }),
+        };
       }
     }),
   );
   industryQuoteCache = {
     fetchedAt: new Date().toISOString(),
-    note: "金銀銅等以可交易 ETF 或台股代理指標呈現，用來觀察產業報價與成本波動，非所有項目都是現貨報價。",
+    note: "產業報價目前以 ETF 或代表性台股作為代理指標，不等同現貨報價；AI 推論與資料來源分開標示。",
     items,
   };
   industryQuoteCacheAt = now;
   return industryQuoteCache;
+}
+
+async function buildDashboard() {
+  const fetchedAt = new Date().toISOString();
+  const settled = await Promise.allSettled(
+    dashboardUniverse.map(async (stockNo) => {
+      const data = await fetchStockFromFinMind(stockNo, 8);
+      const revenueRows = await fetchRevenue(stockNo, 4).catch(() => []);
+      const ai = buildAiSummary(data, revenueRows);
+      const revenue = analyzeRevenue(revenueRows);
+      const tech = technicalSnapshot(data);
+      return { data, ai, revenue, tech };
+    }),
+  );
+  const rows = settled
+    .filter((item) => item.status === "fulfilled")
+    .map((item) => {
+      const { data, ai, revenue, tech } = item.value;
+      return {
+        stockNo: data.stockNo,
+        name: data.name,
+        industry: data.industry,
+        price: data.summary.close,
+        changePct: safePct(data.summary.changePct),
+        aiScore: ai.aiScore,
+        reason: [...(revenue?.tags || []), tech.breakout ? "技術面突破" : ""].filter(Boolean).join("、") || ai.noteworthy[0],
+        risk: ai.risks[0],
+        dataDate: data.summary.date,
+        metadata: data.metadata,
+        revenue,
+        tech,
+      };
+    });
+  const revenueAnomalies = rows
+    .filter((row) => row.revenue?.tags?.length)
+    .sort((a, b) => (b.revenue.latest.yoy || 0) - (a.revenue.latest.yoy || 0))
+    .slice(0, 8);
+  const technicalBreakouts = rows.filter((row) => row.tech.breakout).sort((a, b) => b.tech.score - a.tech.score).slice(0, 8);
+  const themes = [...new Map(rows.map((row) => [row.industry.split("/")[0].trim(), 0]))]
+    .map(([theme]) => ({
+      theme,
+      count: rows.filter((row) => row.industry.startsWith(theme)).length,
+      avgScore: Math.round(average(rows.filter((row) => row.industry.startsWith(theme)).map((row) => row.aiScore)) || 0),
+    }))
+    .sort((a, b) => b.avgScore - a.avgScore)
+    .slice(0, 8);
+  const quotes = await fetchIndustryQuotes().catch(() => ({ items: [] }));
+  const priceEvents = (quotes.items || [])
+    .filter((item) => !item.error)
+    .sort((a, b) => Math.abs(b.changePct || 0) - Math.abs(a.changePct || 0))
+    .slice(0, 6)
+    .map((item) => ({
+      item: item.name,
+      direction: item.changePct >= 0 ? "上漲" : "下跌",
+      changePct: item.changePct,
+      source: item.note,
+      sourceDate: item.date,
+      confidence: item.metadata.confidence,
+      aiInference: "以代理指標衡量產業價格或景氣波動，需再比對現貨或公司公告。",
+      metadata: item.metadata,
+    }));
+  return {
+    today: new Date().toLocaleDateString("zh-TW", { timeZone: "Asia/Taipei" }),
+    fetchedAt,
+    lastUpdatedAt: rows.map((row) => row.dataDate).sort().at(-1) || null,
+    dataStatus: rows.length ? "ok" : "partial",
+    noteworthyStocks: rows.sort((a, b) => b.aiScore - a.aiScore).slice(0, 8),
+    revenueAnomalies,
+    institutionalAnomalies: {
+      status: "not_connected",
+      message: "法人買賣超資料源尚未接入；第一階段不產生猜測排行。",
+      metadata: sourceMeta({ data_source: "未接入", confidence: 0 }),
+    },
+    technicalBreakouts,
+    priceEvents,
+    hotThemes: themes,
+    metadata: sourceMeta({ data_source: "站內 API 彙整", is_estimated: true, confidence: 0.62 }),
+  };
+}
+
+async function buildRevenueRadar(filter = "all") {
+  const settled = await Promise.allSettled(
+    dashboardUniverse.map(async (stockNo) => {
+      const meta = stockMap.get(stockNo);
+      const revenueRows = await fetchRevenue(stockNo, 4);
+      const revenue = analyzeRevenue(revenueRows);
+      if (!revenue) return null;
+      const stockData = await fetchStockFromFinMind(stockNo, 4).catch(() => null);
+      const priceLag =
+        stockData && revenue.latest.yoy != null
+          ? revenue.latest.yoy > 0.2 && stockData.summary.changePct != null && stockData.summary.changePct < 0.08
+          : false;
+      const items = [...revenue.tags];
+      if (priceLag) items.push("營收成長但股價尚未明顯上漲");
+      const row = {
+        stockNo,
+        name: meta?.name || stockNo,
+        industry: meta?.industry || "未分類",
+        latestRevenue: revenue.latest.revenue,
+        yoy: revenue.latest.yoy,
+        mom: revenue.latest.mom,
+        ytdYoy: revenue.ytdYoy,
+        tags: items,
+        price: stockData?.summary.close ?? null,
+        priceChangePct: stockData?.summary.changePct ?? null,
+        dataDate: revenue.latest.reporting_period,
+        metadata: sourceMeta({
+          data_source: "FinMind TaiwanStockMonthRevenue",
+          published_at: revenue.latest.published_at,
+          reporting_period: revenue.latest.reporting_period,
+          is_estimated: false,
+          confidence: 0.82,
+          source_url: finMindUrl,
+        }),
+      };
+      return row;
+    }),
+  );
+  let rows = settled.filter((item) => item.status === "fulfilled" && item.value).map((item) => item.value);
+  if (filter !== "all") rows = rows.filter((row) => row.tags.includes(filter));
+  return {
+    fetchedAt: new Date().toISOString(),
+    filter,
+    filters: [
+      "all",
+      "月營收創歷史新高",
+      "月營收創近三年新高",
+      "連續三個月年增",
+      "年增率大於 20%",
+      "月增率大於 20%",
+      "累計營收轉正",
+      "營收成長但股價尚未明顯上漲",
+      "營收成長且法人開始買超",
+    ],
+    rows: rows.sort((a, b) => (b.yoy || -9) - (a.yoy || -9)).slice(0, 30),
+    unavailableFilters: ["營收成長且法人開始買超"],
+    metadata: sourceMeta({ data_source: "FinMind TaiwanStockMonthRevenue + 站內價格資料", is_estimated: true, confidence: 0.68 }),
+  };
+}
+
+async function buildAiSummaryResponse(stockNo) {
+  const stockData = await fetchStock(stockNo, 12);
+  const revenueRows = await fetchRevenue(stockNo, 4).catch(() => []);
+  return buildAiSummary(stockData, revenueRows);
 }
 
 async function serveStatic(req, res) {
@@ -475,12 +900,14 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ ok: true, fetchedAt: new Date().toISOString() }));
       return;
     }
+    if (url.pathname === "/api/universe") {
+      if (!assertAccess(url, res)) return;
+      res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ fetchedAt: new Date().toISOString(), items: stockUniverse }));
+      return;
+    }
     if (url.pathname === "/api/twse") {
-      if (accessToken && url.searchParams.get("key") !== accessToken) {
-        res.writeHead(401, { "content-type": "application/json; charset=utf-8" });
-        res.end(JSON.stringify({ error: "Access key required" }));
-        return;
-      }
+      if (!assertAccess(url, res)) return;
       const stockNo = url.searchParams.get("stockNo") || "2330";
       const months = Math.min(Math.max(Number(url.searchParams.get("months") || 12), 3), 36);
       const data = await fetchStock(stockNo, months);
@@ -488,12 +915,30 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify(data));
       return;
     }
+    if (url.pathname === "/api/ai-summary") {
+      if (!assertAccess(url, res)) return;
+      const stockNo = url.searchParams.get("stockNo") || "2330";
+      const data = await buildAiSummaryResponse(stockNo);
+      res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify(data));
+      return;
+    }
+    if (url.pathname === "/api/dashboard") {
+      if (!assertAccess(url, res)) return;
+      const data = await buildDashboard();
+      res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify(data));
+      return;
+    }
+    if (url.pathname === "/api/revenue-radar") {
+      if (!assertAccess(url, res)) return;
+      const data = await buildRevenueRadar(url.searchParams.get("filter") || "all");
+      res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify(data));
+      return;
+    }
     if (url.pathname === "/api/industry-quotes") {
-      if (accessToken && url.searchParams.get("key") !== accessToken) {
-        res.writeHead(401, { "content-type": "application/json; charset=utf-8" });
-        res.end(JSON.stringify({ error: "Access key required" }));
-        return;
-      }
+      if (!assertAccess(url, res)) return;
       const data = await fetchIndustryQuotes();
       res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
       res.end(JSON.stringify(data));
